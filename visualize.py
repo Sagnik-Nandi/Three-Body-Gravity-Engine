@@ -1,0 +1,92 @@
+"""Animate a simulation from engine.py.
+
+Usage:
+    python visualize.py                 # live animation window
+    python visualize.py --speed 0.7     # elliptical orbit
+    python visualize.py --save out.png  # save a still image instead
+"""
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
+
+from engine import two_body
+
+COLORS = ["#f5a623", "#4a90e2", "#d0021b"]
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--m1", type=float, default=10.0)
+    p.add_argument("--m2", type=float, default=1.0)
+    p.add_argument("--sep", type=float, default=10.0, help="initial separation")
+    p.add_argument("--speed", type=float, default=1.0,
+                   help="1 = circular, <1 = ellipse, >=1.414 = escape")
+    p.add_argument("--t", type=float, default=100.0, help="simulated time")
+    p.add_argument("--dt", type=float, default=0.01)
+    p.add_argument("--save", help="save a still image to this path instead of animating")
+    args = p.parse_args()
+
+    sim = two_body(args.m1, args.m2, args.sep, args.speed)
+    e0 = sim.energy()
+    times, traj = [sim.time], [sim.positions.copy()]
+    energies = [e0]
+    for _ in range(int(round(args.t / args.dt))):
+        sim.step(args.dt)
+        times.append(sim.time)
+        traj.append(sim.positions.copy())
+        energies.append(sim.energy())
+    times, traj = np.array(times), np.array(traj)
+    drift = (np.array(energies) - e0) / abs(e0)
+
+    fig, (ax, ax_e) = plt.subplots(1, 2, figsize=(12, 5.5),
+                                   gridspec_kw={"width_ratios": [1.2, 1]})
+    ax.set_aspect("equal")
+    ax.set_title(f"m1={args.m1:g}, m2={args.m2:g}, speed factor={args.speed:g}")
+    lim = np.abs(traj).max() * 1.1
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.plot(0, 0, "k+", label="centre of mass")
+
+    ax_e.set_title(f"Numerical energy error (E - E0)/|E0|   [max {np.abs(drift).max():.1e}]")
+    ax_e.set_xlabel("time")
+    ax_e.axhline(0, color="k", lw=0.5)
+    ax_e.plot(times, drift, color="gray")
+    ax_e.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
+    masses = sim.masses
+    sizes = 6 + 14 * np.sqrt(masses / masses.max())
+    trails = [ax.plot([], [], "-", lw=1, color=COLORS[i], alpha=0.6)[0]
+              for i in range(len(masses))]
+    dots = [ax.plot([], [], "o", ms=sizes[i], color=COLORS[i],
+                    label=f"body {i + 1} (m={masses[i]:g})")[0]
+            for i in range(len(masses))]
+    ax.legend(loc="upper right", fontsize=8)
+
+    if args.save:
+        for i in range(len(masses)):
+            trails[i].set_data(traj[:, i, 0], traj[:, i, 1])
+            dots[i].set_data([traj[-1, i, 0]], [traj[-1, i, 1]])
+        fig.tight_layout()
+        fig.savefig(args.save, dpi=110)
+        print(f"saved {args.save}")
+        return
+
+    frame_skip = 5
+
+    def update(frame):
+        k = frame * frame_skip
+        for i in range(len(masses)):
+            trails[i].set_data(traj[:k + 1, i, 0], traj[:k + 1, i, 1])
+            dots[i].set_data([traj[k, i, 0]], [traj[k, i, 1]])
+        return trails + dots
+
+    anim = FuncAnimation(fig, update, frames=len(traj) // frame_skip,
+                         interval=16, blit=True)
+    fig.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
