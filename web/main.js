@@ -29,6 +29,7 @@ const toScene = (sim, i, out) =>
 const container = document.getElementById("view");
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(BACKGROUND);
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
@@ -206,7 +207,7 @@ const ui = Object.fromEntries(
   ["preset", "about", "play", "reset", "speed", "speed-value", "trail", "trail-value",
     "view-angle", "view-top", "view-side", "true-size", "bodies", "time", "energy", "status",
     "chaos", "nudge", "nudge-value", "chaos-panel", "chart", "gap", "horizon", "split-labels",
-    "split-right"]
+    "split-right", "panel-show", "panel-hide"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
@@ -433,30 +434,50 @@ renderer.setAnimationLoop(() => {
   render();
 });
 
-/** Draw the scene; in split screen, the original on the left and the nudged
- *  copy on the right, both seen through the same camera. */
+/** The part of the window the 3D view uses: everything right of the control
+ *  panel while it is open (on wide screens; on phones it sits at the bottom
+ *  and the view stays full width), or the whole window once it is hidden. */
+function viewArea() {
+  const panel = document.getElementById("panel");
+  const sideBySide = !panel.hidden && window.innerWidth > 600;
+  const left = sideBySide ? Math.round(panel.getBoundingClientRect().right + 12) : 0;
+  return { left, width: window.innerWidth - left, height: window.innerHeight };
+}
+
+/** Draw the scene; in split screen, the original on the left half of the
+ *  view area and the nudged copy on the right half, through the same camera. */
 function render() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  if (mode !== "split") {
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, w, h);
-    renderer.render(scene, camera);
-    return;
-  }
-  camera.aspect = w / 2 / h;
-  camera.updateProjectionMatrix();
+  const { left, width, height } = viewArea();
+  const halves = mode === "split"
+    ? [[left, Math.floor(width / 2), main, copies[0]], [left + Math.floor(width / 2), Math.ceil(width / 2), copies[0], main]]
+    : [[left, width, main, null]];
   renderer.setScissorTest(true);
-  for (const [left, shownRun, hiddenRun] of [[0, main, copies[0]], [w / 2, copies[0], main]]) {
+  renderer.setScissor(0, 0, window.innerWidth, height); // clear the strip behind the panel too
+  renderer.clear();
+  for (const [x, w, shownRun, hiddenRun] of halves) {
+    camera.aspect = w / height;
+    camera.updateProjectionMatrix();
     shownRun.group.visible = true;
-    hiddenRun.group.visible = false;
-    renderer.setViewport(left, 0, w / 2, h);
-    renderer.setScissor(left, 0, w / 2, h);
+    if (hiddenRun) hiddenRun.group.visible = false;
+    renderer.setViewport(x, 0, w, height);
+    renderer.setScissor(x, 0, w, height);
     renderer.render(scene, camera);
   }
-  main.group.visible = copies[0].group.visible = true;
+  for (const run of [main, ...copies]) run.group.visible = true;
+  if (mode === "split") placeSplitLabels(left, width);
+}
+
+/** Centre the "Original" / "Nudged" labels over their halves, divider between. */
+function placeSplitLabels(left, width) {
+  const labels = ui["split-labels"];
+  labels.querySelector(".left").style.left = `${left + width / 4}px`;
+  labels.querySelector(".right").style.left = `${left + (3 * width) / 4}px`;
+  labels.querySelector(".divider").style.left = `${left + Math.floor(width / 2)}px`;
+}
+
+function setPanelVisible(visible) {
+  document.getElementById("panel").hidden = !visible;
+  ui["panel-show"].hidden = visible;
 }
 
 // ---- controls ---------------------------------------------------------------
@@ -519,10 +540,15 @@ ui.nudge.addEventListener("change", () => {
   nudge = 10 ** Number(ui.nudge.value);
   restart();
 });
+ui["panel-hide"].addEventListener("click", () => setPanelVisible(false));
+ui["panel-show"].addEventListener("click", () => setPanelVisible(true));
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Space" && e.target.tagName !== "SELECT") {
+  if (e.target.tagName === "SELECT") return;
+  if (e.code === "Space") {
     e.preventDefault();
     togglePlay();
+  } else if (e.code === "KeyH") {
+    setPanelVisible(document.getElementById("panel").hidden);
   }
 });
 window.addEventListener("resize", () => renderer.setSize(window.innerWidth, window.innerHeight));
@@ -531,7 +557,7 @@ window.addEventListener("resize", () => renderer.setSize(window.innerWidth, wind
 // speed; &chaos=twin|split|cloud&nudge=1e-9 turns on a chaos comparison;
 // &start=10 fast-forwards to simulation time 10 (replaying the same 60 fps
 // steps as live play, so the view is exactly what you'd have seen);
-// &paused=1 starts paused.
+// &paused=1 starts paused; &panel=0 starts with the controls hidden.
 const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
 ui.preset.value = requested in SCENARIOS ? requested : "figure8";
@@ -552,3 +578,4 @@ while (main.sim.time < start - 1e-9 && !main.sim.collision) {
   advance(Math.min(1 / 60, (start - main.sim.time) / simPerRealSecond));
 }
 if (params.get("paused") === "1") togglePlay();
+if (params.get("panel") === "0") setPanelVisible(false);

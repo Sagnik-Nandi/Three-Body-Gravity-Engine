@@ -48,10 +48,14 @@
     #split-labels { position: fixed; inset: 0; pointer-events: none; }
     #split-labels span { position: absolute; top: 14px; padding: 3px 10px; font-size: 13px;
       background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
-    #split-labels .left { left: calc(25% + 80px); transform: translateX(-50%); }
-    #split-labels .right { left: 75%; transform: translateX(-50%); }
-    #split-labels .divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+    /* Positions are set from main.js to match the split viewports. */
+    #split-labels .left, #split-labels .right { transform: translateX(-50%); }
+    #split-labels .divider { position: absolute; top: 0; bottom: 0; width: 1px;
       background: var(--line); }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .icon-button { padding: 2px 9px; font-size: 13px; color: var(--muted); }
+    #panel-show { position: fixed; top: 12px; left: 12px; background: var(--panel); }
+    #panel[hidden], #panel-show[hidden] { display: none; }
     #status { margin-top: 8px; min-height: 1.4em; font-size: 13px; }
     #status.alert { color: #ff6b6b; font-weight: 600; }
     .hint { margin-top: 10px; color: var(--muted); font-size: 12px; }
@@ -75,8 +79,12 @@
     <span class="left">Original</span>
     <span class="right" id="split-right">Nudged</span>
   </div>
+  <button id="panel-show" class="icon-button" title="Show controls (H)" hidden>☰ Controls</button>
   <div id="panel">
-    <h1>Three Body</h1>
+    <div class="panel-head">
+      <h1>Three Body</h1>
+      <button id="panel-hide" class="icon-button" title="Hide controls (H)">Hide ✕</button>
+    </div>
     <p class="about" id="about"></p>
 
     <label for="preset">Preset</label>
@@ -136,7 +144,7 @@
       <div><span>Energy error</span><span id="energy">0</span></div>
     </div>
     <div id="status"></div>
-    <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan · space to pause</div>
+    <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan · space to pause · H to hide controls</div>
   </div>
   <script type="module" src="main.js"></script>
 </body>

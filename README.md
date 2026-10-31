@@ -109,6 +109,8 @@ JavaScript modules over http.) Three.js is loaded from a CDN, so the first
 load needs an internet connection.
 
 - **Preset** menu; **Play/Pause** (or the space bar); **Reset**.
+- **Hide ✕** (or the H key) hides the controls so the view fills the window;
+  **☰ Controls** brings them back. While shown, the view (and split screen) uses the space beside them.
 - **Speed**: 0.1x to 10x. At 1x a preset's suggested run lasts ~15 s, then it keeps going.
 - **Trail length**: how much history each body leaves behind (fades with age).
 - **Camera**: drag to rotate, scroll to zoom, right-drag to pan; or Tilted/Top/Side buttons.
@@ -126,7 +128,7 @@ load needs an internet connection.
   and marks the impact.
 - Links: `http://localhost:8000/?preset=pythagorean&speed=4` opens a preset at a speed;
   add `&start=10` to fast-forward to simulation time 10 and `&paused=1` to start paused.
-  `&chaos=cloud&nudge=1e-6` opens with a chaos comparison.
+  `&chaos=cloud&nudge=1e-6` opens with a chaos comparison. `&panel=0` starts with the controls hidden.
 
 The physics' orbital plane (x-y) is drawn as the floor grid; z is up.
 
