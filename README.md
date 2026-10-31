@@ -116,7 +116,8 @@ load needs an internet connection.
   point masses) are drawn enlarged; every body also has a dot that stays visible at any zoom.
 - Readout: simulation time and the energy error. A collision pauses the run
   and marks the impact.
-- Links: `http://localhost:8000/?preset=pythagorean&speed=4` opens a preset at a speed.
+- Links: `http://localhost:8000/?preset=pythagorean&speed=4` opens a preset at a speed;
+  add `&start=10` to fast-forward to simulation time 10 and `&paused=1` to start paused.
 
 The physics' orbital plane (x-y) is drawn as the floor grid; z is up.
 

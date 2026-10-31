@@ -108,12 +108,16 @@ function load(name) {
     );
     mesh.add(dot); // rides along with the sphere
 
+    // The trail history (points) and the drawn line (the geometry's own
+    // buffer) must be separate arrays: updateScene copies the newest part of
+    // the history into the line, which would otherwise overwrite the history.
     const points = new Float32Array(MAX_TRAIL * 3);
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(points, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(MAX_TRAIL * 3), 3));
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(MAX_TRAIL * 3), 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(MAX_TRAIL * 4), 4)); // RGBA
     geometry.setDrawRange(0, 0);
-    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ vertexColors: true }));
+    const line = new THREE.Line(geometry,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
     line.frustumCulled = false; // its bounding box changes every frame
     world.add(line);
 
@@ -216,17 +220,18 @@ function updateScene() {
     const t = b.trail;
     const n = Math.min(t.count, shown);
     const first = t.count - n;
-    // Draw the newest n points; colour fades from the background (oldest)
-    // to the body's colour (newest).
+    // Draw the newest n points, fading out by transparency with age, so
+    // where trails overlap (e.g. all three share the figure-8) an old,
+    // faded trail doesn't hide a fresh one underneath.
     const geometry = t.line.geometry;
     const pos = geometry.attributes.position;
     const col = geometry.attributes.color;
     pos.array.set(t.points.subarray(3 * first, 3 * t.count));
     for (let k = 0; k < n; k++) {
-      const f = n > 1 ? k / (n - 1) : 1;
-      col.array[3 * k] = BACKGROUND.r + (b.color.r - BACKGROUND.r) * f;
-      col.array[3 * k + 1] = BACKGROUND.g + (b.color.g - BACKGROUND.g) * f;
-      col.array[3 * k + 2] = BACKGROUND.b + (b.color.b - BACKGROUND.b) * f;
+      col.array[4 * k] = b.color.r;
+      col.array[4 * k + 1] = b.color.g;
+      col.array[4 * k + 2] = b.color.b;
+      col.array[4 * k + 3] = n > 1 ? k / (n - 1) : 1;
     }
     pos.needsUpdate = true;
     col.needsUpdate = true;
@@ -300,7 +305,10 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// URL options: ?preset=pythagorean&speed=4 picks the preset and playback speed.
+// URL options: ?preset=pythagorean&speed=4 picks the preset and playback
+// speed; &start=10 fast-forwards to simulation time 10 (replaying the same
+// 60 fps steps as live play, so the view is exactly what you'd have seen);
+// &paused=1 starts paused.
 const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
 ui.preset.value = requested in SCENARIOS ? requested : "figure8";
@@ -309,3 +317,9 @@ if (params.has("speed")) {
   ui.speed.dispatchEvent(new Event("input"));
 }
 load(ui.preset.value);
+const start = Number(params.get("start")) || 0;
+const simPerRealSecond = (preset.t / PLAYBACK_SECONDS) * speedMultiplier();
+while (sim.time < start - 1e-9 && !sim.collision) {
+  advance(Math.min(1 / 60, (start - sim.time) / simPerRealSecond));
+}
+if (params.get("paused") === "1") togglePlay();
