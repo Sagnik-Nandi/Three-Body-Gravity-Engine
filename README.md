@@ -61,6 +61,18 @@ python visualize.py --save orbit.png      # save a still image instead of animat
 | `sun-earth-moon` | A moon wobbling around a planet's orbit | Moon stays ~0.3 from the planet for 2 years |
 | `pythagorean` | Masses 3, 4, 5 dropped from rest: chaos, then the 3 is thrown out | Matches the known outcome (Szebehely & Peters 1967): 3 ejected, 4+5 leave as a binary |
 
+### Chaos: `--nudge`
+
+```
+python visualize.py pythagorean --nudge 1e-9   # chaotic: the gap grows ~10x every 6-7 time units
+python visualize.py figure8 --nudge 1e-9       # stable: the gap stays ~1e-8
+```
+
+Runs a second copy with body 1 moved by the given distance, drawn dashed and
+hollow, and plots the distance between the two runs on a log scale. The
+simulation is deterministic (identical inputs give bit-identical results);
+chaos means tiny differences in the input grow exponentially.
+
 The Pythagorean problem is chaotic: with `--eta 0.01` the run is accurate
 early on but diverges later and gives a different outcome. Its preset uses
 `eta = 0.003`, where the result has converged (the same at 0.001).
