@@ -10,7 +10,7 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 - [x] Collisions: bodies have a size; the run stops when two touch
 - [x] Three bodies: figure-8, Lagrange, Euler, Trojan, Sun-Earth-Moon, Pythagorean
 - [x] Port engine to JavaScript, checked against the Python engine
-- [ ] 3D web view (Three.js), live simulation, camera controls
+- [x] 3D web view (Three.js), live simulation, camera controls
 - [ ] Web interface with sliders
 
 ## Files
@@ -21,6 +21,8 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 | `scenarios.py` | Starting setups (`two_body`, `figure8`, `pythagorean`, ...) and the presets list. |
 | `visualize.py` | Runs a preset and animates it (top view, x-y plane) with matplotlib, plus the energy error. |
 | `test_engine.py` | Checks each scenario against its known behaviour (see below). |
+| `web/index.html`, `web/main.js` | The 3D page: runs the JS engine live and draws it with Three.js. |
+| `web/serve.js` | Tiny local web server for the page (`npm start`). |
 | `web/engine.js`, `web/scenarios.js` | JavaScript port of the engine and scenarios, for the browser. |
 | `web/test/` | JS physics tests, plus a cross-check against reference runs exported from Python. |
 | `archive/` | Earlier attempts, kept for reference. |
@@ -91,6 +93,32 @@ Run the tests:
 ```
 python test_engine.py
 ```
+
+## 3D web view
+
+Requires [Node.js](https://nodejs.org). In a terminal (PowerShell is fine):
+
+```
+cd web
+npm start
+```
+
+then open **http://localhost:8000** in your browser. Stop the server with Ctrl+C.
+(Opening `index.html` directly as a file does not work: browsers only load
+JavaScript modules over http.) Three.js is loaded from a CDN, so the first
+load needs an internet connection.
+
+- **Preset** menu; **Play/Pause** (or the space bar); **Reset**.
+- **Speed**: 0.1x to 10x. At 1x a preset's suggested run lasts ~15 s, then it keeps going.
+- **Trail length**: how much history each body leaves behind (fades with age).
+- **Camera**: drag to rotate, scroll to zoom, right-drag to pan; or Tilted/Top/Side buttons.
+- **True body sizes**: off by default, so tiny bodies (a Trojan asteroid, a moon,
+  point masses) are drawn enlarged; every body also has a dot that stays visible at any zoom.
+- Readout: simulation time and the energy error. A collision pauses the run
+  and marks the impact.
+- Links: `http://localhost:8000/?preset=pythagorean&speed=4` opens a preset at a speed.
+
+The physics' orbital plane (x-y) is drawn as the floor grid; z is up.
 
 ## JavaScript engine (`web/`)
 
