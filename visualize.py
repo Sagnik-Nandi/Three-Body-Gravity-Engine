@@ -14,6 +14,7 @@ from matplotlib.animation import FuncAnimation
 from engine import two_body
 
 COLORS = ["#f5a623", "#4a90e2", "#d0021b"]
+MAX_SAMPLES = 2000
 
 
 def main():
@@ -35,11 +36,16 @@ def main():
     e0 = sim.energy()
     times, traj = [sim.time], [sim.positions.copy()]
     energies = [e0]
-    for _ in range(int(round(args.t / args.dt))):
+    # Integrate at full resolution, but only record ~MAX_SAMPLES points:
+    # more than that is invisible on screen and just slows drawing.
+    steps = int(round(args.t / args.dt))
+    record_every = max(1, steps // MAX_SAMPLES)
+    for n in range(1, steps + 1):
         sim.step(args.dt)
-        times.append(sim.time)
-        traj.append(sim.positions.copy())
-        energies.append(sim.energy())
+        if n % record_every == 0:
+            times.append(sim.time)
+            traj.append(sim.positions.copy())
+            energies.append(sim.energy())
     times, traj = np.array(times), np.array(traj)
     drift = (np.array(energies) - e0) / abs(e0)
 
