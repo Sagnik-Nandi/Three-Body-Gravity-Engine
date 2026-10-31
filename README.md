@@ -66,6 +66,7 @@ only their ratios matter.
 
 ## About the energy plot
 
-Real total energy is exactly constant. The plot shows the *numerical* error
+The plot shows the *numerical* error
 `(E - E0)/|E0|` from taking finite steps. Typical values: ~1e-14 (circular, i.e.
 floating-point rounding), ~1e-7 for very eccentric orbits. Lower `--eta` to reduce it.
+Real total energy is exactly constant. 
