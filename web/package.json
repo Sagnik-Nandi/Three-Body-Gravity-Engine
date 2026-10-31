@@ -1,0 +1,9 @@
+{
+  "name": "three-body-web",
+  "private": true,
+  "type": "module",
+  "description": "Gravity simulation engine (JavaScript port of engine.py) and web view",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

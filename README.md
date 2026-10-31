@@ -9,7 +9,7 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 - [x] Two-body orbits with animated visualization and energy check
 - [x] Collisions: bodies have a size; the run stops when two touch
 - [x] Three bodies: figure-8, Lagrange, Euler, Trojan, Sun-Earth-Moon, Pythagorean
-- [ ] Port engine to JavaScript, checked against the Python engine
+- [x] Port engine to JavaScript, checked against the Python engine
 - [ ] 3D web view (Three.js), live simulation, camera controls
 - [ ] Web interface with sliders
 
@@ -21,6 +21,8 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 | `scenarios.py` | Starting setups (`two_body`, `figure8`, `pythagorean`, ...) and the presets list. |
 | `visualize.py` | Runs a preset and animates it (top view, x-y plane) with matplotlib, plus the energy error. |
 | `test_engine.py` | Checks each scenario against its known behaviour (see below). |
+| `web/engine.js`, `web/scenarios.js` | JavaScript port of the engine and scenarios, for the browser. |
+| `web/test/` | JS physics tests, plus a cross-check against reference runs exported from Python. |
 | `archive/` | Earlier attempts, kept for reference. |
 
 ## Requirements
@@ -88,6 +90,35 @@ Run the tests:
 
 ```
 python test_engine.py
+```
+
+## JavaScript engine (`web/`)
+
+The browser version needs the physics in JavaScript, so `web/engine.js` is a
+line-by-line port of `engine.py` (same Yoshida integrator, adaptive step and
+collision rules), and `web/scenarios.js` of `scenarios.py`. It also has
+`advanceTo(t)`, which a live animation calls once per screen frame.
+
+Requires [Node.js](https://nodejs.org) (for running the tests only; the page
+itself will run in any browser). No packages to install.
+
+```
+cd web
+npm test                              # 26 tests, ~1 s
+```
+
+Two kinds of tests:
+- `test/engine.test.js`: the same physics checks as `test_engine.py`.
+- `test/crosscheck.test.js`: runs every scenario and compares positions and
+  energy with the Python engine's output in `test/reference.json`, to 1e-7.
+  The chaotic Pythagorean case is compared only up to t = 10: the two languages
+  round differently in the last digit, and chaos amplifies that (exactly equal
+  until the first close pass at t ≈ 2, then ~10x per few time units).
+
+After changing the Python physics, regenerate the reference:
+
+```
+python web/test/make_reference.py
 ```
 
 ## Units
