@@ -27,10 +27,6 @@ Opening `index.html` directly as a file does not work (browsers only load
 JavaScript modules over http). Three.js is loaded from a CDN, so the first
 load needs an internet connection.
 
-> **Windows:** if `node` or `npm` is "not recognized" right after installing
-> Node.js, close and reopen your terminal (or VS Code entirely, if you use its
-> terminal), or run `$env:Path += ";C:\Program Files\nodejs"` in PowerShell.
-
 ### Python version (matplotlib)
 
 Requires Python 3.10+ with `numpy` and `matplotlib`.
@@ -206,10 +202,12 @@ python web/test/make_reference.py
 ## Roadmap
 
 - [x] N-body engine (3D, Yoshida 4th order, adaptive time step) with tests
+- [x] 2D animation (matplotlib) with a live energy-error plot, to test the physics visually
 - [x] Collisions
 - [x] Classic three-body solutions: figure-8, Lagrange, Euler, Trojan, Sun-Earth-Moon, Pythagorean
 - [x] JavaScript port, cross-checked against Python
 - [x] 3D web view with live simulation and camera controls
 - [x] Chaos comparison: twin, split screen, cloud of nudged copies
+- [x] Welcome page with one-click demos and a guided tour of the controls
 - [ ] Mass and velocity sliders
 - [ ] Drag-to-launch: place bodies and set their velocity with the mouse
