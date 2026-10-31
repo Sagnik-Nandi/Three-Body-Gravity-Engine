@@ -29,6 +29,7 @@
       border-radius: 6px; padding: 6px 10px; cursor: pointer; }
     select { width: 100%; }
     button:hover, select:hover { border-color: var(--accent); }
+    button:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
     .row { display: flex; gap: 6px; align-items: center; }
     .row button { flex: 1; }
     input[type=range] { flex: 1; accent-color: var(--accent); }
@@ -59,6 +60,7 @@
     #status { margin-top: 8px; min-height: 1.4em; font-size: 13px; }
     #status.alert { color: #ff6b6b; font-weight: 600; }
     .hint { margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .build { margin-top: 6px; color: #5d6676; font-size: 11px; }
     .head-buttons { display: flex; gap: 6px; }
 
     /* Welcome overlay: shown over the live simulation on a first visit. */
@@ -79,14 +81,31 @@
       padding: 12px 13px; background: #1b2130; border-radius: 9px; }
     .demo strong { font-size: 14px; }
     .demo span { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
-    .guide { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0;
-      font-size: 13.5px; }
-    .guide dt { color: var(--text); font-weight: 600; }
-    .guide dd { margin: 0; color: #b4bccb; }
     kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
       font: 12px ui-monospace, monospace; color: var(--text); }
-    .intro-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px;
-      flex-wrap: wrap; margin-top: 22px; }
+    .tour-ask { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      flex-wrap: wrap; margin-top: 22px; padding: 14px 16px; background: #1b2130;
+      border: 1px solid var(--line); border-radius: 10px; }
+    .tour-ask p { margin: 0; flex: 1 1 280px; font-size: 14px; }
+    .tour-ask-buttons { display: flex; gap: 8px; }
+
+    /* Guided tour */
+    #tour[hidden] { display: none; }
+    .tour-blocker { position: fixed; inset: 0; z-index: 20; }
+    .tour-spot { position: fixed; z-index: 21; pointer-events: none; border: 2px solid var(--accent);
+      border-radius: 9px; box-shadow: 0 0 0 9999px rgba(5, 7, 12, 0.66);
+      transition: left 0.25s, top 0.25s, width 0.25s, height 0.25s; }
+    .tour-tip { position: fixed; z-index: 22; width: 300px; max-width: calc(100vw - 24px);
+      padding: 14px 16px 12px; background: #182031; border: 1px solid var(--accent);
+      border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      transition: left 0.25s, top 0.25s; }
+    .tour-step { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .tour-title { margin: 3px 0 6px; font-size: 16px; }
+    .tour-text { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: #c4ccda; }
+    .tour-buttons { display: flex; justify-content: space-between; align-items: center; }
+    .tour-nav { display: flex; gap: 6px; }
+    .tour-skip { background: none; border-color: transparent; color: var(--muted); padding-left: 0; }
+    .intro-foot { margin-top: 14px; }
     .intro-foot a { color: var(--accent); font-size: 13px; }
     .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
       padding: 8px 18px; }
@@ -95,8 +114,6 @@
     @media (max-width: 600px) {
       #panel { width: auto; left: 8px; right: 8px; top: auto; bottom: 8px; max-height: 45%; }
       .intro-card { padding: 20px 18px; }
-      .guide { grid-template-columns: 1fr; gap: 2px; }
-      .guide dd { margin-bottom: 8px; }
     }
   </style>
   <script type="importmap">
@@ -142,32 +159,17 @@
         </button>
       </div>
 
-      <h3>How to use</h3>
-      <dl class="guide">
-        <dt>Preset</dt>
-        <dd>Pick a starting setup: classic orbits (figure-8, Lagrange triangle, Euler line),
-          a Trojan asteroid, a moon around a planet, or the chaotic Pythagorean problem.</dd>
-        <dt>Play, Reset, Speed</dt>
-        <dd>Pause and resume (<kbd>Space</kbd>), start over, or run from 0.1× to 10× speed.</dd>
-        <dt>Trail length</dt>
-        <dd>How much of each body's path stays visible behind it.</dd>
-        <dt>Camera</dt>
-        <dd>Drag to rotate, scroll to zoom, right-drag to pan, or jump to a tilted, top or side view.</dd>
-        <dt>Chaos comparison</dt>
-        <dd>Run nudged copies next to the original: a ghost twin, a split screen, or a cloud of 30.
-          The chart shows how fast the gap grows. A straight line on it means chaos.</dd>
-        <dt>Readout</dt>
-        <dd>Simulation time, and the energy error: real energy never changes, so this shows how
-          accurate the simulation is (smaller is better).</dd>
-        <dt>Hide</dt>
-        <dd>Press <kbd>H</kbd> to hide the controls and fill the screen. Press <kbd>?</kbd> in
-          the panel to see this page again.</dd>
-      </dl>
-
+      <div class="tour-ask">
+        <p><strong>New here?</strong> Take a quick tour of the page: each control is
+          highlighted in turn with a short explanation. It takes about a minute.</p>
+        <div class="tour-ask-buttons">
+          <button id="intro-close">Skip</button>
+          <button id="tour-start" class="primary">Yes, show me</button>
+        </div>
+      </div>
       <div class="intro-foot">
         <a href="https://github.com/Sagnik-Nandi/Three-Body-Gravity-Engine" target="_blank"
           rel="noopener">Source code and physics notes on GitHub</a>
-        <button id="intro-close" class="primary">Start exploring</button>
       </div>
     </div>
   </div>
@@ -175,50 +177,60 @@
   <div id="panel">
     <div class="panel-head">
       <h1>Three Body</h1>
-      <div class="head-buttons">
-        <button id="intro-open" class="icon-button" title="About and how to use">?</button>
+      <div class="head-buttons" data-tour="head">
+        <button id="intro-open" class="icon-button" title="About, demos and the tour">?</button>
         <button id="panel-hide" class="icon-button" title="Hide controls (H)">Hide ✕</button>
       </div>
     </div>
     <p class="about" id="about"></p>
 
-    <label for="preset">Preset</label>
-    <select id="preset"></select>
+    <div data-tour="preset">
+      <label for="preset">Preset</label>
+      <select id="preset"></select>
+    </div>
 
-    <div class="row" style="margin-top: 10px">
+    <div class="row" style="margin-top: 10px" data-tour="play">
       <button id="play">Pause</button>
       <button id="reset">Reset</button>
     </div>
 
-    <label for="speed">Speed</label>
-    <div class="row">
-      <input id="speed" type="range" min="-1" max="1" step="0.05" value="0">
-      <span class="value" id="speed-value">1.0×</span>
+    <div data-tour="speed">
+      <label for="speed">Speed</label>
+      <div class="row">
+        <input id="speed" type="range" min="-1" max="1" step="0.05" value="0">
+        <span class="value" id="speed-value">1.0×</span>
+      </div>
     </div>
 
-    <label for="trail">Trail length</label>
-    <div class="row">
-      <input id="trail" type="range" min="0" max="5000" step="100" value="1500">
-      <span class="value" id="trail-value">1500</span>
+    <div data-tour="trail">
+      <label for="trail">Trail length</label>
+      <div class="row">
+        <input id="trail" type="range" min="0" max="5000" step="100" value="1500">
+        <span class="value" id="trail-value">1500</span>
+      </div>
     </div>
 
-    <label>Camera</label>
-    <div class="row">
-      <button id="view-angle">Tilted</button>
-      <button id="view-top">Top</button>
-      <button id="view-side">Side</button>
+    <div data-tour="camera">
+      <label>Camera</label>
+      <div class="row">
+        <button id="view-angle">Tilted</button>
+        <button id="view-top">Top</button>
+        <button id="view-side">Side</button>
+      </div>
     </div>
 
-    <label class="check"><input id="true-size" type="checkbox"> True body sizes</label>
+    <label class="check" data-tour="size"><input id="true-size" type="checkbox"> True body sizes</label>
 
-    <label for="chaos">Chaos comparison</label>
-    <select id="chaos">
-      <option value="off">Off</option>
-      <option value="twin">Twin: nudged copy overlaid</option>
-      <option value="split">Split screen: original | nudged</option>
-      <option value="cloud">Cloud: 30 nudged copies</option>
-    </select>
-    <div id="chaos-panel" hidden>
+    <div data-tour="chaos">
+      <label for="chaos">Chaos comparison</label>
+      <select id="chaos">
+        <option value="off">Off</option>
+        <option value="twin">Twin: nudged copy overlaid</option>
+        <option value="split">Split screen: original | nudged</option>
+        <option value="cloud">Cloud: 30 nudged copies</option>
+      </select>
+    </div>
+    <div id="chaos-panel" data-tour="chart" hidden>
       <label for="nudge">Nudge size</label>
       <div class="row">
         <input id="nudge" type="range" min="-12" max="-1" step="1" value="-9">
@@ -232,14 +244,33 @@
       </div>
     </div>
 
-    <ul id="bodies"></ul>
+    <ul id="bodies" data-tour="bodies"></ul>
 
-    <div id="readout">
+    <div id="readout" data-tour="readout">
       <div><span>Time</span><span id="time">0</span></div>
       <div><span>Energy error</span><span id="energy">0</span></div>
     </div>
     <div id="status"></div>
     <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan · space to pause · H to hide controls</div>
+    <div class="build">version <span id="build-id">local</span></div>
+  </div>
+
+  <!-- Guided tour: dims the page and highlights one control at a time. -->
+  <div id="tour" hidden>
+    <div class="tour-blocker"></div>
+    <div class="tour-spot"></div>
+    <div class="tour-tip" role="dialog" aria-live="polite">
+      <div class="tour-step"></div>
+      <h4 class="tour-title"></h4>
+      <p class="tour-text"></p>
+      <div class="tour-buttons">
+        <button class="tour-skip">Skip tour</button>
+        <span class="tour-nav">
+          <button class="tour-back">Back</button>
+          <button class="tour-next primary">Next</button>
+        </span>
+      </div>
+    </div>
   </div>
   <script type="module" src="main.js"></script>
 </body>

@@ -42,7 +42,18 @@ jobs:
         # Only what the browser needs; serve.js and the tests stay out.
         run: |
           mkdir _site
-          cp web/index.html web/main.js web/engine.js web/scenarios.js _site/
+          cp web/index.html web/main.js web/engine.js web/scenarios.js web/tour.js _site/
+      - name: Stamp the version and make old cached scripts unusable
+        # Browsers may cache scripts for 10 minutes. Adding ?v=<commit> to every
+        # script address means a new page always loads the matching new scripts
+        # (never an old main.js with a new index.html), and shows its version.
+        run: |
+          v="${GITHUB_SHA::7}"
+          cd _site
+          sed -i "s|src=\"main.js\"|src=\"main.js?v=$v\"|; s|>local</span>|>$v</span>|" index.html
+          sed -i "s|from \"\./\([a-z]*\)\.js\"|from \"./\1.js?v=$v\"|" main.js scenarios.js
+          grep -o 'main.js?v=[a-f0-9]*' index.html
+          grep -ho 'from "\./[a-z]*\.js?v=[a-f0-9]*"' main.js scenarios.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

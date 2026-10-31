@@ -13,6 +13,8 @@ watch classic three-body solutions and see chaos for yourself.
 
 The live version above is published automatically from `web/` by
 `.github/workflows/pages.yml` on every push to `main` (after the JS tests pass).
+Each deploy stamps the commit ID into the script addresses, so browsers never
+mix a new page with old cached scripts.
 To run it locally instead, you need [Node.js](https://nodejs.org) (no packages to install):
 
 ```
@@ -74,9 +76,12 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
 
 ## 3D web view
 
-- **Welcome screen**: on a first visit to the plain address, an overlay explains what
-  the project is, offers four one-click demos, and walks through the controls.
-  Reopen it with the **?** button in the panel. Shared links with options skip it.
+- **Welcome screen and tour**: on a first visit to the plain address, an overlay explains
+  what the project is, offers four one-click demos, and asks whether you want a tour.
+  The tour dims the page and highlights each part in turn (Back/Next, arrow keys, Esc to
+  leave). Reopen it with the **?** button in the panel. Shared links with options skip it.
+- **Version**: the bottom of the panel shows which build you are running (the commit
+  ID on the live site, "local" when served with `npm start`).
 - **Preset** menu; **Play/Pause** (or the space bar); **Reset**.
 - **Hide ✕** (or the H key) hides the controls so the view fills the window;
   **☰ Controls** brings them back. While shown, the view (and split screen) uses the space beside them.
@@ -108,6 +113,7 @@ Link options, e.g. `http://localhost:8000/?preset=lagrange&chaos=cloud&nudge=1e-
 | `paused=1` | Start paused |
 | `panel=0` | Start with the controls hidden |
 | `intro=1` | Open the welcome screen |
+| `tour=1` | Start the tour |
 
 ## Python version
 

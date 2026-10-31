@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import { SCENARIOS } from "./scenarios.js";
+import { startTour } from "./tour.js";
 
 const COLORS = ["#f5a623", "#4a90e2", "#d0021b", "#7ed321", "#9013fe"];
 const BACKGROUND = new THREE.Color("#0b0e14");
@@ -207,7 +208,7 @@ const ui = Object.fromEntries(
   ["preset", "about", "play", "reset", "speed", "speed-value", "trail", "trail-value",
     "view-angle", "view-top", "view-side", "true-size", "bodies", "time", "energy", "status",
     "chaos", "nudge", "nudge-value", "chaos-panel", "chart", "gap", "horizon", "split-labels",
-    "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close"]
+    "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
@@ -542,7 +543,41 @@ ui.nudge.addEventListener("change", () => {
 });
 ui["panel-hide"].addEventListener("click", () => setPanelVisible(false));
 
-// ---- welcome overlay ----------------------------------------------------------
+// ---- welcome overlay and tour ---------------------------------------------------
+
+const part = (name) => () => document.querySelector(`[data-tour="${name}"]`);
+const TOUR_STEPS = [
+  { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },
+    title: "The simulation",
+    text: "Bodies pulling on each other with Newton's gravity, computed live. " +
+      "<b>Drag</b> to rotate, <b>scroll</b> to zoom, <b>right-drag</b> to pan." },
+  { target: part("preset"), title: "Presets",
+    text: "Pick a starting setup: famous orbits (figure-8, Lagrange triangle, Euler line), " +
+      "a Trojan asteroid, a moon around a planet, or the chaotic Pythagorean problem." },
+  { target: part("play"), title: "Play and reset",
+    text: "Pause and resume (or press <kbd>Space</kbd>). Reset starts the preset over." },
+  { target: part("speed"), title: "Speed", text: "Run the simulation from 0.1× to 10× speed." },
+  { target: part("trail"), title: "Trails",
+    text: "How much of each body's path stays visible behind it. Older parts fade out." },
+  { target: part("camera"), title: "Camera views",
+    text: "Jump to a tilted, top-down or side view. The orbits lie on the floor grid." },
+  { target: part("size"), title: "True body sizes",
+    text: "Tiny bodies (an asteroid, a moon) are drawn bigger so you can see them. " +
+      "Tick this to see their real sizes." },
+  { target: part("chaos"), title: "Chaos comparison",
+    text: "Run copies of the system nudged by as little as a billionth: a ghost twin, a split " +
+      "screen, or a cloud of 30. In chaotic systems they soon go completely different ways." },
+  { target: part("chart"), title: "How fast they drift apart",
+    text: "The gap between the original and its copies, on a log scale. A straight rising " +
+      "line means exponential growth: the signature of chaos." },
+  { target: part("bodies"), title: "The bodies", text: "Each body's colour and mass." },
+  { target: part("readout"), title: "Readout",
+    text: "Simulation time, and the energy error. Real energy never changes, so this shows " +
+      "how accurate the simulation is: smaller is better." },
+  { target: part("head"), title: "Help and full screen",
+    text: "<b>?</b> brings back the welcome page and this tour. <b>Hide</b> (or <kbd>H</kbd>) " +
+      "hides the controls so the simulation fills the screen. Enjoy!" },
+];
 
 const INTRO_SEEN = "threebody.introSeen";
 
@@ -559,6 +594,11 @@ function setIntroVisible(visible) {
 }
 
 ui["intro-open"].addEventListener("click", () => setIntroVisible(true));
+ui["tour-start"].addEventListener("click", () => {
+  setIntroVisible(false);
+  setPanelVisible(true);
+  startTour(TOUR_STEPS);
+});
 ui["intro-close"].addEventListener("click", () => setIntroVisible(false));
 ui.intro.addEventListener("click", (e) => {
   if (e.target === ui.intro) setIntroVisible(false); // click outside the card
@@ -590,7 +630,7 @@ window.addEventListener("resize", () => renderer.setSize(window.innerWidth, wind
 // &start=10 fast-forwards to simulation time 10 (replaying the same 60 fps
 // steps as live play, so the view is exactly what you'd have seen);
 // &paused=1 starts paused; &panel=0 starts with the controls hidden;
-// &intro=1 opens the welcome overlay.
+// &intro=1 opens the welcome overlay; &tour=1 starts the tour.
 const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
 ui.preset.value = requested in SCENARIOS ? requested : "figure8";
@@ -621,3 +661,4 @@ try {
   // storage blocked: treat as a first visit
 }
 if (params.get("intro") === "1" || (!introSeen && !location.search)) setIntroVisible(true);
+if (params.get("tour") === "1") startTour(TOUR_STEPS);
