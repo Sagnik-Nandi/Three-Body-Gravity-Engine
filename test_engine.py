@@ -30,11 +30,31 @@ def test_energy_and_momentum_conserved():
 
 def test_eccentric_orbit_does_not_precess():
     # Very close passes: fixed-step Verlet lost ~100% of the energy here.
-    sim = two_body(10, 1, separation=10, speed_factor=0.15)
+    # Point masses (size=0), otherwise the bodies would touch at closest approach.
+    sim = two_body(10, 1, separation=10, speed_factor=0.15, size=0)
     a0 = periapsis_angle(sim)
     _, _, energies = sim.run(t_end=200)
     assert np.abs((energies - energies[0]) / energies[0]).max() < 1e-5
     assert abs((periapsis_angle(sim) - a0 + 180) % 360 - 180) < 1e-4
+
+
+def test_head_on_fall_collides():
+    # Free-fall time for two masses released at rest: pi/2 * sqrt(r^3 / 2GM).
+    sim = two_body(10, 1, separation=10, speed_factor=0)
+    times, traj, _ = sim.run(t_end=100)
+    assert sim.collision == (0, 1)
+    gap = np.linalg.norm(traj[-1, 1] - traj[-1, 0]) - sim.radii.sum()
+    assert -0.01 * sim.radii.sum() < gap <= 0  # stopped within one small step of contact
+    assert times[-1] < np.pi / 2 * np.sqrt(1000 / 22)
+
+
+def test_point_masses_collide_without_nan():
+    sim = two_body(10, 1, separation=10, speed_factor=0, size=0)
+    times, traj, energies = sim.run(t_end=100)
+    assert sim.collision == (0, 1)
+    assert np.isfinite(traj).all()
+    assert abs(times[-1] - np.pi / 2 * np.sqrt(1000 / 22)) < 1e-3
+    assert np.abs((energies - energies[0]) / energies[0]).max() < 1e-4
 
 
 def test_escape_speed_unbinds():
