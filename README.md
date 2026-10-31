@@ -85,8 +85,8 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
 - **Trail length**: how much history each body leaves behind (fades with age).
 - **Camera**: drag to rotate, scroll to zoom, right-drag to pan; or Tilted/Top/Side buttons.
   The orbital plane (x-y) is drawn as the floor grid; z is up.
-- **True body sizes**: off by default, so tiny bodies (a Trojan asteroid, a moon,
-  point masses) are drawn enlarged; every body also has a dot that stays visible at any zoom.
+- Bodies are drawn at their true size. Each also has a dot that keeps the same size on
+  screen, so tiny ones (a Trojan asteroid, a moon, point masses) stay visible at any zoom.
 - **Chaos comparison** (see [Chaos](#chaos)):
   - *Twin*: a copy with body 1 moved by the nudge, drawn as see-through ghosts with dashed trails.
   - *Split screen*: original on the left, nudged copy on the right, one shared camera.

@@ -17,7 +17,7 @@ const PLAYBACK_SECONDS = 15; // at 1x speed a preset's suggested run lasts this 
 const TRAIL_POINTS_PER_RUN = 3600;
 const MAX_POINTS_PER_FRAME = 400; // keeps a frame cheap at extreme speeds
 const SINGULAR_RATIO = 1e-8; // same point-mass collision cutoff as System.run
-const MIN_SIZE = 0.008; // smallest drawn radius, as a fraction of the scene size
+const MARKER_SIZE = 0.032; // collision marker radius, as a fraction of the scene size
 const VISIBLE_GAP = 0.01; // a gap of 1% of the system's size counts as visible
 
 // The physics uses x-y as the orbital plane (z up); three.js has y up.
@@ -206,7 +206,7 @@ function seededRandom(seed) {
 
 const ui = Object.fromEntries(
   ["preset", "about", "play", "reset", "speed", "speed-value", "trail", "trail-value",
-    "view-angle", "view-top", "view-side", "true-size", "bodies", "time", "energy", "status",
+    "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
     "chaos", "nudge", "nudge-value", "chaos-panel", "chart", "gap", "horizon", "split-labels",
     "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start"]
     .map((id) => [id, document.getElementById(id)]),
@@ -293,14 +293,13 @@ function formatNudge(x) {
   return `1e${Math.round(Math.log10(x))}`;
 }
 
-/** Bodies are drawn at their true radius, or (unless "true sizes" is ticked)
- *  enlarged to a minimum so tiny ones like a Trojan asteroid stay visible. */
+/** Bodies are drawn at their true radius, so touching on screen means
+ *  touching in the physics. Tiny ones (a Trojan asteroid, a moon, point
+ *  masses) stay visible through their screen-size dot. */
 function applySizes() {
-  const trueSize = ui["true-size"].checked;
   for (const run of [main, ...copies]) {
     run.meshes.forEach((mesh, i) => {
-      const r = trueSize ? run.sim.radii[i] : Math.max(run.sim.radii[i], MIN_SIZE * extent);
-      mesh.scale.setScalar(Math.max(r, 1e-9)); // radius 0: only the screen-size dot shows
+      mesh.scale.setScalar(Math.max(run.sim.radii[i], 1e-9)); // radius 0: only the dot shows
     });
   }
 }
@@ -351,7 +350,7 @@ function onCollision() {
   const a = toScene(sim, i, new THREE.Vector3());
   const b = toScene(sim, j, new THREE.Vector3());
   impactMarker = new THREE.Mesh(
-    new THREE.SphereGeometry(MIN_SIZE * extent * 4, 24, 12),
+    new THREE.SphereGeometry(MARKER_SIZE * extent, 24, 12),
     new THREE.MeshBasicMaterial({ color: 0xff3b3b, wireframe: true }),
   );
   impactMarker.position.copy(a.add(b).multiplyScalar(0.5));
@@ -524,7 +523,6 @@ ui.speed.addEventListener("input", () => {
 });
 ui.speed.addEventListener("change", updateUrl);
 ui.trail.addEventListener("input", () => { ui["trail-value"].textContent = ui.trail.value; });
-ui["true-size"].addEventListener("change", applySizes);
 ui["view-angle"].addEventListener("click", () => setView("angle"));
 ui["view-top"].addEventListener("click", () => setView("top"));
 ui["view-side"].addEventListener("click", () => setView("side"));
@@ -561,9 +559,6 @@ const TOUR_STEPS = [
     text: "How much of each body's path stays visible behind it. Older parts fade out." },
   { target: part("camera"), title: "Camera views",
     text: "Jump to a tilted, top-down or side view. The orbits lie on the floor grid." },
-  { target: part("size"), title: "True body sizes",
-    text: "Tiny bodies (an asteroid, a moon) are drawn bigger so you can see them. " +
-      "Tick this to see their real sizes." },
   { target: part("chaos"), title: "Chaos comparison",
     text: "Run copies of the system nudged by as little as a billionth: a ghost twin, a split " +
       "screen, or a cloud of 30. In chaotic systems they soon go completely different ways." },
