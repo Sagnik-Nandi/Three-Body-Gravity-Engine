@@ -114,10 +114,19 @@ load needs an internet connection.
 - **Camera**: drag to rotate, scroll to zoom, right-drag to pan; or Tilted/Top/Side buttons.
 - **True body sizes**: off by default, so tiny bodies (a Trojan asteroid, a moon,
   point masses) are drawn enlarged; every body also has a dot that stays visible at any zoom.
+- **Chaos comparison** (same idea as `--nudge` in Python):
+  - *Twin*: a copy with body 1 moved by the nudge, drawn as see-through ghosts with dashed trails.
+  - *Split screen*: original on the left, nudged copy on the right, one shared camera.
+  - *Cloud*: 30 copies, every body nudged in a random direction. Stable orbits stay a
+    tight bundle; chaotic ones spray apart.
+  - *Nudge size* from 1e-12 to 1e-1, a log-scale chart of the gap between original
+    and copies, and the time they become visibly apart (gap > 1% of the system's size).
+    Changing the comparison or the nudge restarts the run.
 - Readout: simulation time and the energy error. A collision pauses the run
   and marks the impact.
 - Links: `http://localhost:8000/?preset=pythagorean&speed=4` opens a preset at a speed;
   add `&start=10` to fast-forward to simulation time 10 and `&paused=1` to start paused.
+  `&chaos=cloud&nudge=1e-6` opens with a chaos comparison.
 
 The physics' orbital plane (x-y) is drawn as the floor grid; z is up.
 
