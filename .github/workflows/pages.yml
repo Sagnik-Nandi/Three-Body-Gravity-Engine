@@ -1,0 +1,50 @@
+# Publish the 3D web view (web/) to GitHub Pages on every push to main.
+# The JS tests must pass first. One-time setup in the repo on GitHub:
+# Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: Deploy web view to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # also allow running it by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run JS tests
+        working-directory: web
+        run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Collect the page's files
+        # Only what the browser needs; serve.js and the tests stay out.
+        run: |
+          mkdir _site
+          cp web/index.html web/main.js web/engine.js web/scenarios.js _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

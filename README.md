@@ -5,11 +5,15 @@ three-body simulator: an accurate N-body physics engine in Python, a
 JavaScript port checked against it, and a live 3D web view where you can
 watch classic three-body solutions and see chaos for yourself.
 
+**Try it online: https://sagnik-nandi.github.io/Three-Body-Gravity-Engine/**
+
 ## Quick start
 
 ### 3D web view
 
-Requires [Node.js](https://nodejs.org) (no packages to install).
+The live version above is published automatically from `web/` by
+`.github/workflows/pages.yml` on every push to `main` (after the JS tests pass).
+To run it locally instead, you need [Node.js](https://nodejs.org) (no packages to install):
 
 ```
 cd web
