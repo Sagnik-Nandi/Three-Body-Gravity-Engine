@@ -579,18 +579,9 @@ const TOUR_STEPS = [
       "hides the controls so the simulation fills the screen. Enjoy!" },
 ];
 
-const INTRO_SEEN = "threebody.introSeen";
-
 function setIntroVisible(visible) {
   ui.intro.hidden = !visible;
-  if (visible) ui["intro-close"].focus({ preventScroll: true });
-  else {
-    try {
-      localStorage.setItem(INTRO_SEEN, "1");
-    } catch {
-      // storage blocked (private window etc.): the intro just shows again next time
-    }
-  }
+  if (visible) ui["tour-start"].focus({ preventScroll: true });
 }
 
 ui["intro-open"].addEventListener("click", () => setIntroVisible(true));
@@ -652,13 +643,8 @@ while (main.sim.time < start - 1e-9 && !main.sim.collision) {
 }
 if (params.get("paused") === "1") togglePlay();
 if (params.get("panel") === "0") setPanelVisible(false);
-// First visit to the plain address: show the welcome overlay. Shared links
-// with options (e.g. ?preset=...) go straight to the simulation.
-let introSeen = false;
-try {
-  introSeen = localStorage.getItem(INTRO_SEEN) === "1";
-} catch {
-  // storage blocked: treat as a first visit
-}
-if (params.get("intro") === "1" || (!introSeen && !location.search)) setIntroVisible(true);
+// The plain address is the landing page: it always opens with the welcome
+// overlay. Links with options (e.g. ?preset=..., the demo cards) go straight
+// to the simulation.
+if (params.get("intro") === "1" || !location.search) setIntroVisible(true);
 if (params.get("tour") === "1") startTour(TOUR_STEPS);

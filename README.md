@@ -76,7 +76,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
 
 ## 3D web view
 
-- **Welcome screen and tour**: on a first visit to the plain address, an overlay explains
+- **Welcome screen and tour**: every visit to the plain address opens with an overlay that explains
   what the project is, offers four one-click demos, and asks whether you want a tour.
   The tour dims the page and highlights each part in turn (Back/Next, arrow keys, Esc to
   leave). Reopen it with the **?** button in the panel. Shared links with options skip it.
