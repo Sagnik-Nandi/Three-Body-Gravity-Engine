@@ -55,11 +55,18 @@ python visualize.py --save orbit.png      # save a still image instead of animat
 | Preset | What you should see | What the test checks |
 |---|---|---|
 | `figure8` | Three equal masses chasing each other along one figure-8 | Returns to its start after one period (6.326) within 1e-6 |
-| `lagrange` | Rigidly rotating equilateral triangle that falls apart | Stays equilateral for a period; a 1e-6 nudge breaks it |
-| `euler` | Three masses in a rotating line that falls apart | Middle body stays still, line keeps length; a 1e-6 nudge breaks it |
+| `lagrange` | Rigidly rotating equilateral triangle, perfect for 4 orbits. Add `--nudge 1e-6` to watch it fall apart | Stays equilateral for a period; a 1e-6 nudge breaks it |
+| `euler` | Three masses in a rotating line, perfect. Add `--nudge 1e-6` to watch it fall apart | Middle body stays still, line keeps length; a 1e-6 nudge breaks it |
 | `trojan` | Asteroid 60° ahead of Jupiter, staying there | Same Lagrange triangle with masses 1000:1:0 is *stable*: a 1% nudge swings it 39°–88° but it never leaves |
 | `sun-earth-moon` | A moon wobbling around a planet's orbit | Moon stays ~0.3 from the planet for 2 years |
 | `pythagorean` | Masses 3, 4, 5 dropped from rest: chaos, then the 3 is thrown out | Matches the known outcome (Szebehely & Peters 1967): 3 ejected, 4+5 leave as a binary |
+
+`lagrange` and `euler` are exact but *unstable* solutions, like a pencil
+balanced on its tip: any imperfection grows instead of being corrected. Even
+floating-point rounding (~1e-16) grows ~85x per orbit in the Lagrange triangle
+and breaks it after ~7 orbits, which is why its preset runs only 4 (still
+perfect to ~1e-8). The Euler line's symmetry survives rounding exactly, so it
+stays perfect indefinitely until nudged.
 
 ### Chaos: `--nudge`
 
