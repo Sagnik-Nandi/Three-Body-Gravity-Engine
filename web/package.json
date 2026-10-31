@@ -5,6 +5,6 @@
   "description": "Gravity simulation engine (JavaScript port of engine.py) and web view",
   "scripts": {
     "start": "node serve.js",
-    "test": "node --test test/"
+    "test": "node --test \"test/*.test.js\""
   }
 }
