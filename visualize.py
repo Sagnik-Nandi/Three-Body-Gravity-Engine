@@ -70,8 +70,7 @@ def main():
                                   label=f"body {i + 1} (m={masses[i]:g})"))
               for i in range(len(masses))]
     centres = [ax.plot([], [], "o", ms=3, color=COLORS[i])[0] for i in range(len(masses))]
-    impact = ax.plot([], [], "*", ms=22, color="#d0021b", mec="k", visible=False,
-                     label="collision" if sim.collision else None)[0]
+    impact = ax.plot([], [], "*", ms=22, color="#d0021b", mec="k", visible=False)[0]
     if sim.collision:
         i, j = sim.collision
         impact.set_data([traj[-1, [i, j], 0].mean()], [traj[-1, [i, j], 1].mean()])
