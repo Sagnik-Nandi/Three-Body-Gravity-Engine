@@ -5,7 +5,7 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 
 ## Status
 
-- [x] N-body engine (2D Newtonian gravity, velocity Verlet integrator)
+- [x] N-body engine (2D Newtonian gravity, Yoshida 4th-order integrator, adaptive time step)
 - [x] Two-body orbits with animated visualization and energy check
 - [ ] Three bodies + figure-8 test case
 - [ ] Web interface with sliders
@@ -34,7 +34,7 @@ python visualize.py                       # circular orbit (animated)
 python visualize.py --speed 0.7           # ellipse
 python visualize.py --speed 1.5           # escape
 python visualize.py --m1 5 --m2 5         # equal masses
-python visualize.py --dt 0.001            # smaller time step = smaller energy error
+python visualize.py --eta 0.003           # smaller eta = smaller steps = more accurate
 python visualize.py --duration 5         # play the whole run in 5 seconds (default 10)
 python visualize.py --save orbit.png      # save a still image instead of animating
 ```
@@ -53,9 +53,19 @@ python test_engine.py
 Simulation units with `G = 1`. Masses, distances and times are dimensionless;
 only their ratios matter.
 
+## Numerical method
+
+- **Integrator: Yoshida 4th order.** A symplectic method (like velocity Verlet,
+  but three sub-steps per step) so energy errors stay bounded instead of
+  accumulating; error shrinks as `dt⁴`.
+- **Adaptive time step:** `dt = eta × min over pairs of sqrt(r³ / G(mᵢ+mⱼ))`.
+  Steps shrink automatically during close encounters, where a fixed step
+  would make the orbit precess or blow up.
+- `run()` lands exactly on evenly spaced sample times, so the animation plays
+  at a uniform speed regardless of the step size.
+
 ## About the energy plot
 
 Real total energy is exactly constant. The plot shows the *numerical* error
-`(E - E0)/|E0|` introduced by taking finite time steps. With velocity Verlet this
-error oscillates (largest at closest approach, where forces change fastest) but
-does not grow over time, and it shrinks as `dt²`: 10× smaller `dt` → 100× smaller error.
+`(E - E0)/|E0|` from taking finite steps. Typical values: ~1e-14 (circular, i.e.
+floating-point rounding), ~1e-7 for very eccentric orbits. Lower `--eta` to reduce it.

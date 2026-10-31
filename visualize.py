@@ -25,7 +25,8 @@ def main():
     p.add_argument("--speed", type=float, default=1.0,
                    help="1 = circular, <1 = ellipse, >=1.414 = escape")
     p.add_argument("--t", type=float, default=100.0, help="simulated time")
-    p.add_argument("--dt", type=float, default=0.01)
+    p.add_argument("--eta", type=float, default=0.01,
+                   help="accuracy: step size as a fraction of the shortest orbital timescale")
     p.add_argument("--duration", type=float, default=10.0,
                    help="real-world seconds the animation takes to play")
     p.add_argument("--fps", type=int, default=30)
@@ -33,21 +34,10 @@ def main():
     args = p.parse_args()
 
     sim = two_body(args.m1, args.m2, args.sep, args.speed)
-    e0 = sim.energy()
-    times, traj = [sim.time], [sim.positions.copy()]
-    energies = [e0]
-    # Integrate at full resolution, but only record ~MAX_SAMPLES points:
+    # The engine steps adaptively; we only record MAX_SAMPLES points because
     # more than that is invisible on screen and just slows drawing.
-    steps = int(round(args.t / args.dt))
-    record_every = max(1, steps // MAX_SAMPLES)
-    for n in range(1, steps + 1):
-        sim.step(args.dt)
-        if n % record_every == 0:
-            times.append(sim.time)
-            traj.append(sim.positions.copy())
-            energies.append(sim.energy())
-    times, traj = np.array(times), np.array(traj)
-    drift = (np.array(energies) - e0) / abs(e0)
+    times, traj, energies = sim.run(args.t, MAX_SAMPLES, args.eta)
+    drift = (energies - energies[0]) / abs(energies[0])
 
     fig, (ax, ax_e) = plt.subplots(1, 2, figsize=(12, 5.5),
                                    gridspec_kw={"width_ratios": [1.2, 1]})

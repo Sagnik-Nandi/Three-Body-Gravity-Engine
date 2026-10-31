@@ -1,6 +1,14 @@
 """N-body gravity engine. Pure physics: no plotting, no I/O."""
 import numpy as np
 
+# Yoshida 4th-order coefficients: three Verlet-like sub-steps, one of them
+# backwards in time, arranged so the dt^2 and dt^3 errors cancel.
+_CBRT2 = 2 ** (1 / 3)
+_W1 = 1 / (2 - _CBRT2)
+_W0 = -_CBRT2 / (2 - _CBRT2)
+_DRIFT = (_W1 / 2, (_W0 + _W1) / 2, (_W0 + _W1) / 2, _W1 / 2)
+_KICK = (_W1, _W0, _W1)
+
 
 class System:
     """A set of point masses interacting through Newtonian gravity (2D).
@@ -18,7 +26,6 @@ class System:
         self.G = G
         self.softening = softening
         self.time = 0.0
-        self._acc = self.accelerations()
 
     def accelerations(self):
         # d[i, j] = vector from body i to body j
@@ -29,23 +36,42 @@ class System:
         return self.G * (d * (self.masses[None, :] * inv_r3)[:, :, None]).sum(axis=1)
 
     def step(self, dt):
-        """Advance one step with velocity Verlet (keeps energy stable long-term)."""
-        self.velocities += 0.5 * dt * self._acc
-        self.positions += dt * self.velocities
-        self._acc = self.accelerations()
-        self.velocities += 0.5 * dt * self._acc
+        """Advance one step with the Yoshida 4th-order symplectic integrator."""
+        for drift, kick in zip(_DRIFT, _KICK):
+            self.positions += drift * dt * self.velocities
+            self.velocities += kick * dt * self.accelerations()
+        self.positions += _DRIFT[3] * dt * self.velocities
         self.time += dt
 
-    def run(self, t_end, dt):
-        """Step until t_end; return (times, positions) where positions is (steps+1, n, 2)."""
-        steps = int(round(t_end / dt))
-        times = [self.time]
+    def timescale(self):
+        """Shortest pairwise free-fall time sqrt(r^3 / G(mi+mj)).
+
+        Small when two bodies are close, so steps proportional to it
+        shrink automatically during close encounters.
+        """
+        d = self.positions[None, :, :] - self.positions[:, None, :]
+        r2 = (d ** 2).sum(axis=-1) + self.softening ** 2
+        np.fill_diagonal(r2, np.inf)
+        m = self.masses[None, :] + self.masses[:, None]
+        return np.sqrt(r2 ** 1.5 / (self.G * m)).min()
+
+    def run(self, t_end, n_samples=2000, eta=0.01):
+        """Integrate to t_end with adaptive steps dt = eta * timescale().
+
+        Smaller eta = more accurate and slower. Records the state at
+        n_samples+1 evenly spaced times (steps are shortened to land on them).
+        Returns (times, positions, energies); positions has shape (n_samples+1, n, 2).
+        """
+        times = np.linspace(self.time, t_end, n_samples + 1)
         traj = [self.positions.copy()]
-        for _ in range(steps):
-            self.step(dt)
-            times.append(self.time)
+        energies = [self.energy()]
+        for t_next in times[1:]:
+            while self.time < t_next - 1e-12:
+                self.step(min(eta * self.timescale(), t_next - self.time))
+            self.time = t_next  # remove floating-point creep
             traj.append(self.positions.copy())
-        return np.array(times), np.array(traj)
+            energies.append(self.energy())
+        return times, np.array(traj), np.array(energies)
 
     def kinetic_energy(self):
         return 0.5 * (self.masses * (self.velocities ** 2).sum(axis=1)).sum()
