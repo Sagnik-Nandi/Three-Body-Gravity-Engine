@@ -1,6 +1,7 @@
 """Export reference runs from the Python engine for the JS cross-check.
 
 Run from the project root:  python web/test/make_reference.py
+(it imports the engine from the python/ folder)
 Writes web/test/reference.json, read by crosscheck.test.js. Each case name
 must match a factory in CASES of crosscheck.test.js.
 """
@@ -8,8 +9,8 @@ import json
 import os
 import sys
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
-sys.path.insert(0, ROOT)
+PYTHON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "python")
+sys.path.insert(0, PYTHON_DIR)
 
 import numpy as np  # noqa: E402
 
