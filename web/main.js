@@ -207,7 +207,7 @@ const ui = Object.fromEntries(
   ["preset", "about", "play", "reset", "speed", "speed-value", "trail", "trail-value",
     "view-angle", "view-top", "view-side", "true-size", "bodies", "time", "energy", "status",
     "chaos", "nudge", "nudge-value", "chaos-panel", "chart", "gap", "horizon", "split-labels",
-    "split-right", "panel-show", "panel-hide"]
+    "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
@@ -541,8 +541,40 @@ ui.nudge.addEventListener("change", () => {
   restart();
 });
 ui["panel-hide"].addEventListener("click", () => setPanelVisible(false));
+
+// ---- welcome overlay ----------------------------------------------------------
+
+const INTRO_SEEN = "threebody.introSeen";
+
+function setIntroVisible(visible) {
+  ui.intro.hidden = !visible;
+  if (visible) ui["intro-close"].focus({ preventScroll: true });
+  else {
+    try {
+      localStorage.setItem(INTRO_SEEN, "1");
+    } catch {
+      // storage blocked (private window etc.): the intro just shows again next time
+    }
+  }
+}
+
+ui["intro-open"].addEventListener("click", () => setIntroVisible(true));
+ui["intro-close"].addEventListener("click", () => setIntroVisible(false));
+ui.intro.addEventListener("click", (e) => {
+  if (e.target === ui.intro) setIntroVisible(false); // click outside the card
+});
+for (const demo of ui.intro.querySelectorAll(".demo")) {
+  demo.addEventListener("click", () => {
+    setIntroVisible(false);
+    location.search = demo.dataset.link;
+  });
+}
 ui["panel-show"].addEventListener("click", () => setPanelVisible(true));
 window.addEventListener("keydown", (e) => {
+  if (!ui.intro.hidden) {
+    if (e.code === "Escape") setIntroVisible(false);
+    return; // keys don't reach the simulation while the intro is open
+  }
   if (e.target.tagName === "SELECT") return;
   if (e.code === "Space") {
     e.preventDefault();
@@ -557,7 +589,8 @@ window.addEventListener("resize", () => renderer.setSize(window.innerWidth, wind
 // speed; &chaos=twin|split|cloud&nudge=1e-9 turns on a chaos comparison;
 // &start=10 fast-forwards to simulation time 10 (replaying the same 60 fps
 // steps as live play, so the view is exactly what you'd have seen);
-// &paused=1 starts paused; &panel=0 starts with the controls hidden.
+// &paused=1 starts paused; &panel=0 starts with the controls hidden;
+// &intro=1 opens the welcome overlay.
 const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
 ui.preset.value = requested in SCENARIOS ? requested : "figure8";
@@ -579,3 +612,12 @@ while (main.sim.time < start - 1e-9 && !main.sim.collision) {
 }
 if (params.get("paused") === "1") togglePlay();
 if (params.get("panel") === "0") setPanelVisible(false);
+// First visit to the plain address: show the welcome overlay. Shared links
+// with options (e.g. ?preset=...) go straight to the simulation.
+let introSeen = false;
+try {
+  introSeen = localStorage.getItem(INTRO_SEEN) === "1";
+} catch {
+  // storage blocked: treat as a first visit
+}
+if (params.get("intro") === "1" || (!introSeen && !location.search)) setIntroVisible(true);
