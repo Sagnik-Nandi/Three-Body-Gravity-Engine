@@ -11,9 +11,10 @@ _KICK = (_W1, _W0, _W1)
 
 
 class System:
-    """A set of bodies interacting through Newtonian gravity (2D).
+    """A set of bodies interacting through Newtonian gravity.
 
-    positions, velocities: arrays of shape (n, 2)
+    positions, velocities: arrays of shape (n, 3). Nothing here depends on
+                           the dimension, so (n, 2) also works.
     masses: array of shape (n,)
     radii: body sizes; two bodies touching counts as a collision and stops
            the run. Zero radii means point masses.
@@ -69,7 +70,7 @@ class System:
         i, j = np.unravel_index(np.argmin(gap), gap.shape)
         return (int(i), int(j)) if gap[i, j] <= 0 else None
 
-    def run(self, t_end, n_samples=2000, eta=0.01, singular_ratio=1e-5):
+    def run(self, t_end, n_samples=2000, eta=0.01, singular_ratio=1e-8):
         """Integrate to t_end with adaptive steps dt = eta * timescale().
 
         Smaller eta = more accurate and slower. Records the state at
@@ -78,7 +79,7 @@ class System:
         timescale falls below singular_ratio x its starting value (they are
         about to hit and the force is blowing up). self.collision is then
         set and the last sample is the moment of impact.
-        Returns (times, positions, energies); positions has shape (samples, n, 2).
+        Returns (times, positions, energies); positions has shape (samples, n, 3).
         """
         times = [self.time]
         traj = [self.positions.copy()]
@@ -124,24 +125,8 @@ class System:
     def momentum(self):
         return (self.masses[:, None] * self.velocities).sum(axis=0)
 
+    def angular_momentum(self):
+        """Total L = sum m (r x v). Constant in time; points perpendicular to
+        the orbital plane."""
+        return (self.masses[:, None] * np.cross(self.positions, self.velocities)).sum(axis=0)
 
-def radius_for_mass(m, size=0.1):
-    """Equal-density bodies: radius grows as the cube root of mass."""
-    return size * np.cbrt(m)
-
-
-def two_body(m1, m2, separation, speed_factor=1.0, size=0.1, G=1.0):
-    """Two bodies orbiting their common centre of mass (placed at the origin).
-
-    speed_factor = 1        -> circular orbit
-    0 < speed_factor < 1    -> ellipse (collides if the closest approach is too close)
-    speed_factor = 0        -> falls straight in and collides
-    speed_factor >= sqrt(2) -> escape (bodies fly apart)
-    size: radius of a mass-1 body; 0 makes them point masses.
-    """
-    M = m1 + m2
-    v_rel = speed_factor * np.sqrt(G * M / separation)
-    positions = [[-separation * m2 / M, 0.0], [separation * m1 / M, 0.0]]
-    velocities = [[0.0, -v_rel * m2 / M], [0.0, v_rel * m1 / M]]
-    radii = radius_for_mass(np.array([m1, m2]), size)
-    return System([m1, m2], positions, velocities, radii=radii, G=G)

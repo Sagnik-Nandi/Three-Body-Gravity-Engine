@@ -5,19 +5,22 @@ three-body simulator with a web interface (adjustable masses, velocities, etc.).
 
 ## Status
 
-- [x] N-body engine (2D Newtonian gravity, Yoshida 4th-order integrator, adaptive time step)
+- [x] N-body engine (3D Newtonian gravity, Yoshida 4th-order integrator, adaptive time step)
 - [x] Two-body orbits with animated visualization and energy check
 - [x] Collisions: bodies have a size; the run stops when two touch
-- [ ] Three bodies + figure-8 test case
+- [x] Three bodies: figure-8, Lagrange, Euler, Trojan, Sun-Earth-Moon, Pythagorean
+- [ ] Port engine to JavaScript, checked against the Python engine
+- [ ] 3D web view (Three.js), live simulation, camera controls
 - [ ] Web interface with sliders
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `engine.py` | Pure physics: the `System` class and scenario helpers like `two_body`. No plotting. |
-| `visualize.py` | Runs a scenario and animates it with matplotlib, plus a plot of the energy error. |
-| `test_engine.py` | Sanity checks: circular orbit keeps its radius, energy/momentum conserved, escape works. |
+| `engine.py` | Pure physics: the `System` class (works in 3D). No plotting. |
+| `scenarios.py` | Starting setups (`two_body`, `figure8`, `pythagorean`, ...) and the presets list. |
+| `visualize.py` | Runs a preset and animates it (top view, x-y plane) with matplotlib, plus the energy error. |
+| `test_engine.py` | Checks each scenario against its known behaviour (see below). |
 | `archive/` | Earlier attempts, kept for reference. |
 
 ## Requirements
@@ -31,7 +34,9 @@ pip install numpy matplotlib
 ## Usage
 
 ```
-python visualize.py                       # circular orbit (animated)
+python visualize.py --help                # list presets
+python visualize.py figure8               # any three-body preset (see below)
+python visualize.py                       # two-body circular orbit (animated)
 python visualize.py --speed 0.7           # ellipse
 python visualize.py --speed 1.5           # escape
 python visualize.py --m1 5 --m2 5         # equal masses
@@ -44,6 +49,21 @@ python visualize.py --save orbit.png      # save a still image instead of animat
 
 `--speed` is a multiple of circular-orbit speed: `1` circular, `<1` ellipse,
 `>= sqrt(2) ≈ 1.414` the bodies escape each other.
+
+### Three-body presets
+
+| Preset | What you should see | What the test checks |
+|---|---|---|
+| `figure8` | Three equal masses chasing each other along one figure-8 | Returns to its start after one period (6.326) within 1e-6 |
+| `lagrange` | Rigidly rotating equilateral triangle that falls apart | Stays equilateral for a period; a 1e-6 nudge breaks it |
+| `euler` | Three masses in a rotating line that falls apart | Middle body stays still, line keeps length; a 1e-6 nudge breaks it |
+| `trojan` | Asteroid 60° ahead of Jupiter, staying there | Same Lagrange triangle with masses 1000:1:0 is *stable*: a 1% nudge swings it 39°–88° but it never leaves |
+| `sun-earth-moon` | A moon wobbling around a planet's orbit | Moon stays ~0.3 from the planet for 2 years |
+| `pythagorean` | Masses 3, 4, 5 dropped from rest: chaos, then the 3 is thrown out | Matches the known outcome (Szebehely & Peters 1967): 3 ejected, 4+5 leave as a binary |
+
+The Pythagorean problem is chaotic: with `--eta 0.01` the run is accurate
+early on but diverges later and gives a different outcome. Its preset uses
+`eta = 0.003`, where the result has converged (the same at 0.001).
 
 Run the tests:
 
@@ -68,8 +88,10 @@ only their ratios matter.
   (≈1% of the remaining distance per step), so close encounters stay accurate.
 - **Collisions:** each body has radius `size × mass^(1/3)` (equal density).
   When two surfaces touch, the run stops and the plot marks the impact.
-  With `--size 0` (point masses) the run stops when the bodies are ~1/2000 of
-  their starting distance apart, since the force is heading to infinity.
+  Point masses (size 0) can't touch, so the run stops only if the pair's
+  timescale falls below 1e-8 of its starting value (~1/200,000 of the distance),
+  meaning they are heading into a true singularity. Near-misses like the
+  Pythagorean problem's (4e-4 apart) pass through untouched.
 - `run()` lands exactly on evenly spaced sample times, so the animation plays
   at a uniform speed regardless of the step size.
 
