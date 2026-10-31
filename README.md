@@ -35,6 +35,7 @@ python visualize.py --speed 0.7           # ellipse
 python visualize.py --speed 1.5           # escape
 python visualize.py --m1 5 --m2 5         # equal masses
 python visualize.py --dt 0.001            # smaller time step = smaller energy error
+python visualize.py --duration 5         # play the whole run in 5 seconds (default 10)
 python visualize.py --save orbit.png      # save a still image instead of animating
 ```
 

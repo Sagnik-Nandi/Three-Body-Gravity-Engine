@@ -25,6 +25,9 @@ def main():
                    help="1 = circular, <1 = ellipse, >=1.414 = escape")
     p.add_argument("--t", type=float, default=100.0, help="simulated time")
     p.add_argument("--dt", type=float, default=0.01)
+    p.add_argument("--duration", type=float, default=10.0,
+                   help="real-world seconds the animation takes to play")
+    p.add_argument("--fps", type=int, default=30)
     p.add_argument("--save", help="save a still image to this path instead of animating")
     args = p.parse_args()
 
@@ -73,17 +76,20 @@ def main():
         print(f"saved {args.save}")
         return
 
-    frame_skip = 5
+    # Playback speed is set by --duration, independent of dt: each frame
+    # jumps ahead as many simulation steps as needed.
+    n_frames = int(args.duration * args.fps)
+    frame_idx = np.linspace(0, len(traj) - 1, n_frames).astype(int)
 
     def update(frame):
-        k = frame * frame_skip
+        k = frame_idx[frame]
         for i in range(len(masses)):
             trails[i].set_data(traj[:k + 1, i, 0], traj[:k + 1, i, 1])
             dots[i].set_data([traj[k, i, 0]], [traj[k, i, 1]])
         return trails + dots
 
-    anim = FuncAnimation(fig, update, frames=len(traj) // frame_skip,
-                         interval=16, blit=True)
+    anim = FuncAnimation(fig, update, frames=n_frames,
+                         interval=1000 / args.fps, blit=True)
     fig.tight_layout()
     plt.show()
 
