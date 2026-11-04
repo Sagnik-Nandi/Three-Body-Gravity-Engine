@@ -100,6 +100,7 @@ class Trail {
     // history into the line, which would otherwise overwrite the history.
     this.points = new Float32Array(max * 3);
     this.count = 0;
+    this.limit = Infinity; // most points to draw; shrinks once the body is gone
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(max * 3), 3));
     geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(max * 4), 4)); // RGBA
@@ -122,11 +123,17 @@ class Trail {
     this.count++;
   }
 
+  /** The body is gone: lose one point from the old end, at the pace a live
+   *  trail moves on, so the trail runs out instead of staying forever. */
+  shrink(shown) {
+    this.limit = Math.max(Math.min(this.limit, this.count, shown) - 1, 0);
+  }
+
   /** Draw the newest `shown` points, fading out by transparency with age, so
    *  where trails overlap (e.g. all three share the figure-8) an old, faded
    *  trail doesn't hide a fresh one underneath. */
   update(shown, dashLength) {
-    const n = Math.min(this.count, shown);
+    const n = Math.min(this.count, shown, this.limit);
     const geometry = this.line.geometry;
     const pos = geometry.attributes.position;
     const col = geometry.attributes.color;
@@ -247,6 +254,7 @@ function recordTrails(run) {
   run.trails.forEach((t, id) => {
     const i = run.sim.indexOfId(id);
     if (i >= 0) t.push(toScene(run.sim, i, tmp));
+    else t.shrink(Number(ui.trail.value));
   });
 }
 
@@ -714,7 +722,7 @@ function setPlaying(value) {
 
 /** Keep the page address in step with the settings, so it can be shared. */
 function updateUrl() {
-  const p = new URLSearchParams({ preset: presetName, speed: +speedMultiplier().toFixed(2) });
+  const p = new URLSearchParams({ preset: presetName, speed: +speedMultiplier().toPrecision(2) });
   if (mode !== "off" || preset.chaos) p.set("chaos", mode);
   if (mode !== "off") p.set("nudge", formatNudge(nudge));
   if (ui.tides.checked !== Boolean(preset.tides)) p.set("tides", ui.tides.checked ? "1" : "0");
@@ -814,8 +822,8 @@ const TOUR_STEPS = [
     text: "Each button is a different experiment." },
   { target: presetGroup("Orbits"), enter: () => selectPreset("figure8"), title: "Orbits",
     text: "Patterns that repeat. Here, three masses share one path." },
-  { target: presetGroup("Chaos"), enter: () => selectPreset("butterfly"), title: "Chaos",
-    text: "These 30 copies start almost identical. Watch them scatter." },
+  { target: presetGroup("Chaos"), enter: () => selectPreset("twins"), title: "Chaos",
+    text: "The same system twice, one nudged slightly. Identical at first, then not." },
   { target: presetGroup("Impacts & tides"), enter: () => selectPreset("moon-torn"), title: "Impacts & tides",
     text: "Bodies collide and merge. This moon is 1,000 rocks, and tides are tearing it apart." },
   { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },

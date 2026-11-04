@@ -160,8 +160,6 @@ export const SCENARIOS = {
 
   pythagorean: { label: "Pythagorean", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, speed: 3,
     about: "Three tangle, then one is thrown out." },
-  butterfly: { label: "Butterfly", group: "Chaos", make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01, chaos: "cloud",
-    about: "30 almost identical copies scatter." },
   twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "split", speed: 4,
     about: "Identical at first, then not." },
 
