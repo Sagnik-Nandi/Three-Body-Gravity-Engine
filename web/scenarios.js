@@ -170,7 +170,7 @@ export function binaryFlyby(aim = -2) {
  */
 export function giantImpact() {
   const massRatio = 0.2;
-  return cometImpact({ massRatio, speed: 1, spin: 0.7, closest: 0.8 * (1 + Math.cbrt(massRatio)), orbit: 40, sunMass: 30 });
+  return cometImpact({ massRatio, speed: 1, spin: 0.7, closest: 0.83 * (1 + Math.cbrt(massRatio)), orbit: 40, sunMass: 30 });
 }
 
 // Presets for the web page, in menu order. label, group, about: how the menu
@@ -216,11 +216,11 @@ export const SCENARIOS = {
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
     about: "Two planets collide and merge." },
-  "moon-holds": { label: "Moon holds", group: "Impacts & tides", make: () => moonInOrbit({ distance: 11 }), t: 57, tides: true, particles: true,
+  "moon-holds": { label: "Moon holds", group: "Impacts & tides", make: () => moonInOrbit({ distance: 11 }), t: 42, tides: true, particles: true,
     about: "Outside the Roche limit, gravity holds 1,000 rocks together." },
-  "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 45, tides: true, particles: true, extent: 11,
+  "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 40, tides: true, particles: true, extent: 11,
     about: "Inside the Roche limit, tides win." },
-  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 6.5, follow: true, viewDistance: 35,
+  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 42, particles: true, extent: 6.5, follow: true, viewDistance: 35,
     about: "A huge hit throws out a moon, but it can't last: it falls back." },
   comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 16,
     about: "One close pass pulls a comet into a string." },

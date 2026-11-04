@@ -22,6 +22,8 @@ const MAX_POINTS_PER_FRAME = 400; // keeps a frame cheap at extreme speeds
 const SINGULAR_RATIO = 1e-8; // same point-mass collision cutoff as System.run
 const VISIBLE_GAP = 0.01; // a gap of 1% of the system's size counts as visible
 const FRAME_BUDGET_MS = 12; // particle physics gets this long per frame; slower machines run in slow motion
+const FRAME_BUDGET_MAX_MS = 28; // and up to this long above 1x speed
+const REACHED_SPEED_SECONDS = 0.5; // how often the speed label checks what is really being reached
 const SLOW_READOUT_SECONDS = 0.25; // particle energy costs N^2, so it updates this often
 const FOLLOW_TILT = 1; // how steeply the view looks down on a followed planet (1 is 45 degrees)
 const FLASH_SECONDS = 1.2; // how long a merge's flash lasts
@@ -400,6 +402,7 @@ let flashes = []; // merges being shown: {mesh, age}
 let mergesShown = 0;
 let bodyRowsFor = null; // what the body list currently describes
 let lastSlowReadout = -Infinity;
+const reached = { sim: 0, real: 0 }; // simulation and real time since the speed label last checked
 
 // ---- building a preset ----------------------------------------------------
 
@@ -611,7 +614,11 @@ function advance(realSeconds) {
   const sim = main.sim;
   const simDt = realSeconds * (preset.t / PLAYBACK_SECONDS) * speedMultiplier();
   if (preset.particles) {
-    sim.advanceBy(simDt, FRAME_BUDGET_MS);
+    const before = sim.time;
+    // Above 1x, trade some frame rate for speed.
+    const speed = speedMultiplier();
+    sim.advanceBy(simDt, speed > 1 ? Math.min(FRAME_BUDGET_MS * speed, FRAME_BUDGET_MAX_MS) : FRAME_BUDGET_MS);
+    noteReachedSpeed(sim.time - before, realSeconds);
     recordTrails(main);
     return;
   }
@@ -627,6 +634,18 @@ function advance(realSeconds) {
     recordTrails(main);
   }
   recordGap();
+}
+
+/** The slider asks for a speed; a particle preset may not be able to reach it. If
+ *  so, the label says what this machine is really doing. */
+function noteReachedSpeed(simSeconds, realSeconds) {
+  reached.sim += simSeconds;
+  reached.real += realSeconds;
+  if (reached.real < REACHED_SPEED_SECONDS) return;
+  const speed = (reached.sim / reached.real) / (preset.t / PLAYBACK_SECONDS);
+  reached.sim = reached.real = 0;
+  const asked = speedMultiplier();
+  ui["speed-value"].textContent = speed < 0.9 * asked ? `${speed.toFixed(1)}×` : formatSpeed(asked);
 }
 
 /** Note how far the copies have drifted from the original (worst copy). */
@@ -827,9 +846,14 @@ function speedMultiplier() {
   return 10 ** Number(ui.speed.value);
 }
 
+function formatSpeed(multiplier) {
+  return `${multiplier.toFixed(multiplier < 1 ? 2 : 1)}×`;
+}
+
 function setSpeed(multiplier) {
   ui.speed.value = Math.log10(multiplier);
-  ui["speed-value"].textContent = `${speedMultiplier().toFixed(speedMultiplier() < 1 ? 2 : 1)}×`;
+  ui["speed-value"].textContent = formatSpeed(speedMultiplier());
+  reached.sim = reached.real = 0;
 }
 
 function setTrail(points) {

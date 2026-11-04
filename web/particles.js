@@ -13,7 +13,7 @@
 import { System } from "./engine.js";
 
 /** How far particles may overlap under the body's own weight, as a fraction of their radius. */
-const MAX_OVERLAP = 0.05;
+const MAX_OVERLAP = 0.3; // softer contacts allow a longer step, which is what makes these run fast
 const STEPS_PER_CONTACT = 16; // substeps during one bounce between two particles
 const SUBSTEPS = 8; // contact substeps per gravity calculation
 const CLEAR_OF_PLANET = 1.6; // rocks nearer than this, in planet radii, may be its bulge

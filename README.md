@@ -92,8 +92,8 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
   **Quick tour** (also under **?**) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
 - **Play/pause** (or the space bar), **restart** (or the R key), and **speed** from 0.1x to 10x. At 1x a preset's
-  suggested run lasts ~15 s, then it keeps going. Particle presets run as fast as your
-  machine allows, so high speeds may not go any faster.
+  suggested run lasts ~15 s, then it keeps going. If a particle preset can't reach the speed
+  you ask for, the label shows the speed your machine is really reaching.
 - **✕** (or the H key) hides the controls so the view fills the window; **☰** brings them back.
   While shown, the view (and split screen) uses the space beside them.
 - **Tide arrows**: one arrow through each strongly affected body, along the axis the tide stretches it.
@@ -210,8 +210,8 @@ compressed (cube root of the strength), since the true range is too wide to draw
 together only by its own gravity, each rock a sphere that can push on its neighbours
 but not pull. A point can't feel a tide, but a pile can: the outer rocks feel the
 planet's gravity differently from the inner ones, so **tides need no code of their own**.
-The Roche limit emerges by itself: our moon holds at distance 8.5 and breaks at 8,
-which is 2.1 radii of an equal-density planet, between the theoretical limits for a
+The Roche limit emerges by itself: our moon holds at distance 9 and breaks at 8.5,
+which is 2.2 radii of an equal-density planet, between the theoretical limits for a
 rigid moon (1.26) and a fluid one (2.44). Rocks that touch a planet are absorbed by it.
 
 This is a different method from the rest of the engine, because many bodies need it:
