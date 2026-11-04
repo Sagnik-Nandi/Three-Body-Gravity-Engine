@@ -719,8 +719,9 @@ function setTrail(points) {
 
 function setPlaying(value) {
   playing = value;
-  ui["icon-pause"].hidden = !playing;
-  ui["icon-play"].hidden = playing;
+  // SVG elements have no .hidden property, so set the attribute itself.
+  ui["icon-pause"].toggleAttribute("hidden", !playing);
+  ui["icon-play"].toggleAttribute("hidden", playing);
   const label = playing ? "Pause" : "Play";
   ui.play.title = `${label} (Space)`;
   ui.play.setAttribute("aria-label", label);
