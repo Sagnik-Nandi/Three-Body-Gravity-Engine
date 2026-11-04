@@ -141,7 +141,7 @@ export function eccentricMoon() {
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
-// speed: playback speed; tides: arrows on; particles: made of particles (these
+// tides: arrows on; particles: made of particles (these
 // step themselves, and can't be compared: too heavy); extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
@@ -158,10 +158,12 @@ export const SCENARIOS = {
   "sun-earth-moon": { label: "Moon", group: "Orbits", make: () => sunEarthMoon(), t: 4 * Math.PI * Math.sqrt(1000 / 1001), eta: 0.01,
     about: "A moon circling a planet circling a star." },
 
-  pythagorean: { label: "Pythagorean", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, speed: 3,
+  pythagorean: { label: "Pythagorean", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003,
     about: "Three tangle, then one is thrown out." },
-  twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "split", speed: 4,
-    about: "Identical at first, then not." },
+  butterfly: { label: "Butterfly", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "cloud",
+    about: "The butterfly effect: 30 almost identical copies scatter." },
+  twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "twin",
+    about: "A nudged ghost copy: identical at first, then not." },
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
     about: "Two planets collide and merge." },

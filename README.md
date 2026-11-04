@@ -69,7 +69,7 @@ The web view adds more (see [Impacts and tides](#impacts-and-tides)):
 
 | Preset | What you should see | What the test checks |
 |---|---|---|
-| `twins` | `pythagorean` in split screen, one side nudged | Same as `pythagorean` |
+| `butterfly`, `twins` | `pythagorean` as a cloud of 30 nudged copies, and with one nudged ghost copy | Same as `pythagorean` |
 | `head-on` | Two planets meet head-on and merge; the survivor swings around the star | One merge; momentum and energy budget balance |
 | `tides` | Tide arrows on a moon, surging at each close pass | Arrows use the tidal tensor, checked against the real difference in gravity |
 | `moon-holds` | 1,000 rocks stay a moon, outside the Roche limit | Keeps its shape over 3 orbits |

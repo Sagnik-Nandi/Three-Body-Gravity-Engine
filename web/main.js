@@ -740,7 +740,7 @@ function restart() {
 function selectPreset(name) {
   const next = SCENARIOS[name];
   mode = next.chaos ?? "off";
-  setSpeed(next.speed ?? 1);
+  setSpeed(1);
   ui.tides.checked = Boolean(next.tides);
   setPlaying(true);
   load(name);
@@ -822,8 +822,8 @@ const TOUR_STEPS = [
     text: "Each button is a different experiment." },
   { target: presetGroup("Orbits"), enter: () => selectPreset("figure8"), title: "Orbits",
     text: "Patterns that repeat. Here, three masses share one path." },
-  { target: presetGroup("Chaos"), enter: () => selectPreset("twins"), title: "Chaos",
-    text: "The same system twice, one nudged slightly. Identical at first, then not." },
+  { target: presetGroup("Chaos"), enter: () => selectPreset("butterfly"), title: "Chaos",
+    text: "These 30 copies start almost identical. Watch them scatter." },
   { target: presetGroup("Impacts & tides"), enter: () => selectPreset("moon-torn"), title: "Impacts & tides",
     text: "Bodies collide and merge. This moon is 1,000 rocks, and tides are tearing it apart." },
   { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },
@@ -871,7 +871,7 @@ const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
 const startName = requested in SCENARIOS ? requested : "figure8";
 const startPreset = SCENARIOS[startName];
-setSpeed(Number(params.get("speed")) || startPreset.speed || 1);
+setSpeed(Number(params.get("speed")) || 1);
 ui.tides.checked = params.has("tides") ? params.get("tides") === "1" : Boolean(startPreset.tides);
 mode = startPreset.chaos ?? "off";
 if (["off", "twin", "split", "cloud"].includes(params.get("chaos"))) mode = params.get("chaos");
