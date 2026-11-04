@@ -176,7 +176,7 @@ export function giantImpact() {
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
-// tides: arrows on; trail: starting trail length; particles: made of particles (these
+// follow: the camera stays with the planet; viewDistance: how far back it stands; tides: arrows on; trail: starting trail length; particles: made of particles (these
 // step themselves, and can't be compared: too heavy); follow: the camera stays with the planet; extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
@@ -220,7 +220,7 @@ export const SCENARIOS = {
     about: "Outside the Roche limit, gravity holds 1,000 rocks together." },
   "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 45, tides: true, particles: true, extent: 11,
     about: "Inside the Roche limit, tides win." },
-  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 7, follow: true,
+  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 6.5, follow: true, viewDistance: 35,
     about: "A huge hit throws out a moon, but it can't last: it falls back." },
   comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 16,
     about: "One close pass pulls a comet into a string." },

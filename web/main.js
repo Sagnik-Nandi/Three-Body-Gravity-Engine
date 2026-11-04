@@ -23,7 +23,7 @@ const SINGULAR_RATIO = 1e-8; // same point-mass collision cutoff as System.run
 const VISIBLE_GAP = 0.01; // a gap of 1% of the system's size counts as visible
 const FRAME_BUDGET_MS = 12; // particle physics gets this long per frame; slower machines run in slow motion
 const SLOW_READOUT_SECONDS = 0.25; // particle energy costs N^2, so it updates this often
-const FOLLOW_TILT = 2.6; // how steeply the view looks down on a followed planet
+const FOLLOW_TILT = 1; // how steeply the view looks down on a followed planet (1 is 45 degrees)
 const FLASH_SECONDS = 1.2; // how long a merge's flash lasts
 const FLASH_SIZE = 0.09; // its final radius, as a fraction of the scene size
 const ROCK_COLORS = ["#c8ccd4", "#8d94a3"]; // moon particles: alternating wedges, so shearing shows
@@ -392,6 +392,8 @@ let horizon = null; // time the copies first visibly separated
 let floor = null; // the grid in the orbital plane
 let inset = null; // the markers in the small overview, if shown
 const followed = new THREE.Vector3(); // where the view was last centred
+const UP = new THREE.Vector3(0, 1, 0);
+let sunBearing = 0; // the planet's direction from the Sun, when the camera last turned
 let tideLines = null;
 let tideReference = 1;
 let flashes = []; // merges being shown: {mesh, age}
@@ -490,13 +492,33 @@ function formatNudge(x) {
 // ---- camera ---------------------------------------------------------------
 
 function setView(kind) {
-  const d = extent * 3.2;
-  const directions = { angle: [0, preset.follow ? FOLLOW_TILT : 0.75, 1], top: [0, 1, 1e-4], side: [0, 0.02, 1] };
+  const d = preset.viewDistance ?? extent * 3.2;
+  const directions = { angle: [0, 0.75, 1], top: [0, 1, 1e-4], side: [0, 0.02, 1] };
   const centre = followPoint();
-  camera.position.set(...directions[kind]).normalize().multiplyScalar(d).add(centre);
+  camera.position.set(...directions[kind]);
+  // A followed planet is seen from its far side, so the Sun sits at the top edge.
+  if (preset.follow) {
+    const out = centre.clone().sub(sunPoint()).setY(0).normalize();
+    if (kind === "angle") camera.position.set(out.x, FOLLOW_TILT, out.z);
+    if (kind === "side") camera.position.set(out.x, 0.02, out.z);
+    if (kind === "top") camera.position.set(out.x * 1e-4, 1, out.z * 1e-4);
+  }
+  camera.position.normalize().multiplyScalar(d).add(centre);
   controls.target.copy(centre);
   controls.update();
   followed.copy(centre);
+  sunBearing = bearingFromSun(centre);
+}
+
+/** The Sun, in scene coordinates. */
+function sunPoint() {
+  return toScene(main.sim, 0, new THREE.Vector3());
+}
+
+/** The direction from the Sun to a point, as an angle around the vertical. */
+function bearingFromSun(point) {
+  const sun = sunPoint();
+  return Math.atan2(point.x - sun.x, point.z - sun.z);
 }
 
 /** The point the view stays on: the planet, for a preset that follows it. */
@@ -510,10 +532,14 @@ function followPoint() {
 function updateFollow() {
   if (!preset.follow) return;
   const centre = followPoint();
-  const moved = centre.clone().sub(followed);
-  camera.position.add(moved);
-  controls.target.add(moved);
+  // Carry the camera along and turn it with the orbit, so the Sun stays where it is on screen.
+  const bearing = bearingFromSun(centre);
+  const offset = camera.position.clone().sub(controls.target).applyAxisAngle(UP, bearing - sunBearing);
+  sunBearing = bearing;
+  controls.target.copy(centre);
+  camera.position.copy(centre).add(offset);
   floor.position.set(centre.x, 0, centre.z);
+  floor.rotation.y = bearing;
   followed.copy(centre);
   updateInset(centre);
 }
