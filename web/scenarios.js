@@ -1,6 +1,7 @@
 // Starting configurations (G = 1). JavaScript port of scenarios.py:
 // each function returns an engine System.
 import { System } from "./engine.js";
+import { cometFlyby, moonInOrbit } from "./particles.js";
 
 /** Equal-density bodies: radius grows as the cube root of mass. */
 export function radiusForMass(m, size = 0.1) {
@@ -121,21 +122,59 @@ export function pythagorean() {
   return makeSystem([3, 4, 5], [[1, 3], [-2, -1], [1, -1]], [[0, 0], [0, 0], [0, 0]], 0);
 }
 
-// Presets for the web page. make: builds the System; t: suggested run time;
-// eta: accuracy (chaotic runs need smaller). Same as SCENARIOS in scenarios.py.
+/**
+ * Two planets on the same circular orbit, going opposite ways around a star:
+ * they meet head-on, and what's left carries on in an eccentric orbit.
+ */
+export function headOn() {
+  const [star, a, b] = [100, 1, 0.5];
+  const r = 10;
+  const v = Math.sqrt(star / r);
+  return makeSystem([star, a, b], [[0, 0], [r, 0], [-r, 0]], [[0, 0], [0, v], [0, v]], 0.1);
+}
+
+/** A moon on a very eccentric orbit, so the tides on it surge at closest approach. */
+export function eccentricMoon() {
+  return twoBody(100, 1, 10, 0.5, 0.05);
+}
+
+// Presets for the web page, in menu order. label, group, about: how the menu
+// shows it. make: builds the System; t: suggested run time; eta: accuracy
+// (chaotic runs need smaller). Optional: chaos: opens with that comparison;
+// speed: playback speed; tides: arrows on; particles: made of particles (these
+// step themselves, and can't be compared: too heavy); extent: size of the view,
+// if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
-  "two-body": { make: () => twoBody(10, 1, 10), t: 100, eta: 0.01,
-    about: "circular two-body orbit" },
-  figure8: { make: () => figure8(), t: 3 * FIGURE8_PERIOD, eta: 0.01,
-    about: "equal masses chasing each other on a figure-8 (period 6.326)" },
-  lagrange: { make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01,
-    about: "rotating equilateral triangle, equal masses. Unstable: rounding errors alone break it after ~7 orbits" },
-  trojan: { make: () => sunJupiterTrojan(), t: 25 * lagrangePeriod([1000, 1, 0], 10), eta: 0.01,
-    about: "Sun-Jupiter-Trojan at 60 deg: nudged 1%, swings around L4 but stays" },
-  euler: { make: () => eulerLine(), t: 8 * eulerPeriod(), eta: 0.01,
-    about: "three masses in a rotating line. Unstable, but its mirror symmetry survives rounding, so it stays perfect" },
-  "sun-earth-moon": { make: () => sunEarthMoon(), t: 4 * Math.PI * Math.sqrt(1000 / 1001), eta: 0.01,
-    about: "star, planet, and a moon around the planet (2 years)" },
-  pythagorean: { make: () => pythagorean(), t: 70, eta: 0.003,
-    about: "masses 3,4,5 released from rest: chaos, then the 3 is ejected" },
+  "two-body": { label: "Two-body", group: "Orbits", make: () => twoBody(10, 1, 10), t: 100, eta: 0.01,
+    about: "One circular orbit." },
+  figure8: { label: "Figure-8", group: "Orbits", make: () => figure8(), t: 3 * FIGURE8_PERIOD, eta: 0.01,
+    about: "Three equal masses share one path." },
+  lagrange: { label: "Triangle", group: "Orbits", make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01,
+    about: "A spinning triangle that eventually breaks." },
+  euler: { label: "Line", group: "Orbits", make: () => eulerLine(), t: 8 * eulerPeriod(), eta: 0.01,
+    about: "Three in a rotating line: perfect, but fragile." },
+  trojan: { label: "Trojan", group: "Orbits", make: () => sunJupiterTrojan(), t: 25 * lagrangePeriod([1000, 1, 0], 10), eta: 0.01,
+    about: "An asteroid parked 60° ahead of Jupiter." },
+  "sun-earth-moon": { label: "Moon", group: "Orbits", make: () => sunEarthMoon(), t: 4 * Math.PI * Math.sqrt(1000 / 1001), eta: 0.01,
+    about: "A moon circling a planet circling a star." },
+
+  pythagorean: { label: "Pythagorean", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, speed: 3,
+    about: "Three tangle, then one is thrown out." },
+  butterfly: { label: "Butterfly", group: "Chaos", make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01, chaos: "cloud",
+    about: "30 copies, nudged a billionth, scatter." },
+  twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "split", speed: 4,
+    about: "Identical at first, then not." },
+
+  "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
+    about: "Two planets collide and merge." },
+  tides: { label: "Tides", group: "Impacts & tides", make: () => eccentricMoon(), t: 18, eta: 0.01, tides: true,
+    about: "Tides surge at each close pass." },
+  "moon-holds": { label: "Moon holds", group: "Impacts & tides", make: () => moonInOrbit({ distance: 11 }), t: 57, tides: true, particles: true,
+    about: "Outside the Roche limit, gravity holds 1,000 rocks together." },
+  "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 45, tides: true, particles: true, extent: 11,
+    about: "Inside the Roche limit, tides win." },
+  ring: { label: "Ring", group: "Impacts & tides", make: () => moonInOrbit({ distance: 6 }), t: 60, particles: true, extent: 11,
+    about: "A shredded moon spreads around its planet." },
+  comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 22,
+    about: "One close pass pulls a comet into a string." },
 };
