@@ -71,7 +71,7 @@ The web view adds more (see [Impacts and tides](#impacts-and-tides)):
 |---|---|---|
 | `butterfly`, `twins` | `pythagorean` as a cloud of 30 nudged copies, and with one nudged ghost copy | Same as `pythagorean` |
 | `flyby` | A star passes a tight pair, keeps one as a new partner and throws the other out | The new pair stays together; the old partner leaves |
-| `cross`, `flower`, `rosette`, `loops`, `moth` | Clean patterns that repeat exactly | Return to the start after one period; survive a 1e-4 nudge |
+| `flower`, `trefoil`, `loops`, `choreography` | Clean repeating patterns; only `flower` is stable | All return to the start after one period; `flower` survives a nudge; `choreography` leaves its path within 5 periods |
 | `head-on` | Two planets meet head-on and merge; the survivor swings around the star | One merge; momentum and energy budget balance |
 | `tides` | Tide arrows on a moon, surging at each close pass | Arrows use the tidal tensor, checked against the real difference in gravity |
 | `moon-holds` | 1,000 rocks stay a moon, outside the Roche limit | Keeps its shape over 3 orbits |
@@ -88,7 +88,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
 
 ## 3D web view
 
-- **Presets** are always on show, in groups: Orbits, Chaos, Stable patterns, and Impacts & tides.
+- **Presets** are always on show, in groups: Orbits, Chaos, Patterns, and Impacts & tides.
   The plain address opens with all of them and a line about each; click one to run it.
   **Quick tour** (also under **?**) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
@@ -173,14 +173,23 @@ The Pythagorean problem is chaotic: with `--eta 0.01` the run is accurate
 early on but diverges later and gives a different outcome. Its preset uses
 `eta = 0.003`, where the result has converged (the same at 0.001).
 
-## Stable patterns
+## Patterns
 
-`cross`, `flower`, `rosette` and `loops` come from the Broucke-Hadjidemetriou-Hénon family, with
-numbers from the [Three-body Gallery](http://three-body.ipb.ac.rs/broucke.php). `moth` is Moth I
-(Šuvakov & Dmitrašinović, PRL 2013), with numbers from Hristov, Hristova & Tanikawa
-([arXiv:2510.22802](https://arxiv.org/abs/2510.22802), [data](https://db2.fmi.uni-sofia.bg/3bodystab971/)).
-Try **Twin** on them: the copy slowly slips out of step but keeps the same pattern, while on
-`pythagorean` it goes somewhere else entirely.
+Periodic orbits of three equal masses, from Broucke (1975) and Simó (2001). The starting values
+are from [Three Body Orbits](https://www.threebodyorbits.com), used under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+Periodic doesn't mean stable. Measured on this engine, here is how long each holds its pattern:
+
+| Preset | Orbit | Holds for | At 1x |
+|---|---|---|---|
+| `flower` | Broucke A5 | Stable | Indefinitely |
+| `trefoil` | Broucke A10 | ~8-11 periods | ~2 minutes |
+| `loops` | Broucke R2 | ~10-13 periods | ~90 s |
+| `choreography` | Simó SC.87 | ~1 period | ~15-20 s |
+
+The unstable ones can't be saved by finer steps: rounding in the last digit is enough to
+grow until the pattern breaks.
 
 ## Impacts and tides
 
