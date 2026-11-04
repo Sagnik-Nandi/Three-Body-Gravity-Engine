@@ -92,8 +92,9 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
   **Quick tour** (also under **?**) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
 - **Play/pause** (or the space bar), **restart** (or the R key), and **speed** from 0.1x to 10x. At 1x a preset's
-  suggested run lasts ~15 s, then it keeps going. If a particle preset can't reach the speed
-  you ask for, the label shows the speed your machine is really reaching.
+  suggested run lasts ~15 s, then it keeps going. The label always shows the speed you set,
+  but particle presets are limited by the machine: on our test laptop Giant impact and Moon holds
+  top out at about 2.5-4x however high the slider goes, and Moon torn and Comet at about 6-7x.
 - **✕** (or the H key) hides the controls so the view fills the window; **☰** brings them back.
   While shown, the view (and split screen) uses the space beside them.
 - **Tide arrows**: one arrow through each strongly affected body, along the axis the tide stretches it.
