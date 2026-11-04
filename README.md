@@ -70,6 +70,8 @@ The web view adds more (see [Impacts and tides](#impacts-and-tides)):
 | Preset | What you should see | What the test checks |
 |---|---|---|
 | `butterfly`, `twins` | `pythagorean` as a cloud of 30 nudged copies, and with one nudged ghost copy | Same as `pythagorean` |
+| `flyby` | A star passes a tight pair, keeps one as a new partner and throws the other out | The new pair stays together; the old partner leaves |
+| `cross`, `flower`, `rosette`, `loops`, `moth` | Clean patterns that repeat exactly | Return to the start after one period; survive a 1e-4 nudge |
 | `head-on` | Two planets meet head-on and merge; the survivor swings around the star | One merge; momentum and energy budget balance |
 | `tides` | Tide arrows on a moon, surging at each close pass | Arrows use the tidal tensor, checked against the real difference in gravity |
 | `moon-holds` | 1,000 rocks stay a moon, outside the Roche limit | Keeps its shape over 3 orbits |
@@ -86,7 +88,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
 
 ## 3D web view
 
-- **Presets** are always on show, in three groups: Orbits, Chaos, and Impacts & tides.
+- **Presets** are always on show, in groups: Orbits, Chaos, Stable patterns, and Impacts & tides.
   The plain address opens with all of them and a line about each; click one to run it.
   **Quick tour** (also under **?**) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
@@ -170,6 +172,15 @@ long-term future is unpredictable in practice.
 The Pythagorean problem is chaotic: with `--eta 0.01` the run is accurate
 early on but diverges later and gives a different outcome. Its preset uses
 `eta = 0.003`, where the result has converged (the same at 0.001).
+
+## Stable patterns
+
+`cross`, `flower`, `rosette` and `loops` come from the Broucke-Hadjidemetriou-Hénon family, with
+numbers from the [Three-body Gallery](http://three-body.ipb.ac.rs/broucke.php). `moth` is Moth I
+(Šuvakov & Dmitrašinović, PRL 2013), with numbers from Hristov, Hristova & Tanikawa
+([arXiv:2510.22802](https://arxiv.org/abs/2510.22802), [data](https://db2.fmi.uni-sofia.bg/3bodystab971/)).
+Try **Twin** on them: the copy slowly slips out of step but keeps the same pattern, while on
+`pythagorean` it goes somewhere else entirely.
 
 ## Impacts and tides
 

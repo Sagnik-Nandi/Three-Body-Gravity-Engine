@@ -138,10 +138,40 @@ export function eccentricMoon() {
   return twoBody(100, 1, 10, 0.5, 0.05);
 }
 
+/**
+ * Stable periodic orbits: equal point masses tracing clean repeating patterns.
+ * All but one are from Broucke's family (Broucke 1975, Henon 1976), with numbers
+ * from the Three-body Gallery, http://three-body.ipb.ac.rs/broucke.php. Moth I is
+ * from Suvakov & Dmitrasinovic, PRL 110 (2013), with numbers from Hristov et al.,
+ * New Astronomy 125 (2026), https://db2.fmi.uni-sofia.bg/3bodystab971/.
+ * pos, vel: starting positions and velocities; T: the period.
+ */
+export const PATTERNS = {
+  cross: { pos: [[-0.1095519101, 0.0], [1.6613533905, 0.0], [-1.5518014804, 0.0]], vel: [[0.0, 0.9913358338], [0.0, -0.1569959746], [0.0, -0.8343398592]], T: 12.055859 }, // Broucke A 7
+  flower: { pos: [[0.2355245585, 0.0], [0.9712004534, 0.0], [-1.2067250118, 0.0]], vel: [[0.0, 1.2795329643], [0.0, -0.4021329019], [0.0, -0.8774000623]], T: 8.689105 }, // Broucke A 5
+  rosette: { pos: [[0.0557080334, 0.0], [1.3308335036, 0.0], [-1.386541537, 0.0]], vel: [[0.0, 1.0824099428], [0.0, -0.2339059386], [0.0, -0.8485040042]], T: 20.897689 }, // Broucke A 9
+  loops: { pos: [[0.8733047091, 0.0], [-0.6254030288, 0.0], [-0.2479016803, 0.0]], vel: [[0.0, 1.0107764436], [0.0, -1.6833533458], [0.0, 0.6725769022]], T: 5.395826 }, // Broucke R 4
+  moth: { pos: [[-1, 0], [0, 0], [1, 0]], vel: [[0.4644451728180667, 0.39606001465281476], [-0.9288903456361334, -0.7921200293056295], [0.4644451728180667, 0.39606001465281476]], T: 14.894305175042124 }, // Moth I
+};
+
+export function periodicOrbit({ pos, vel }) {
+  return makeSystem([1, 1, 1], pos, vel, 0);
+}
+
+/**
+ * A star flies at a tight pair of stars, all of equal mass. `aim`: how far off
+ * centre it comes in. With aim -2 it swaps places: it keeps body 1 as a new
+ * partner and throws body 2 out.
+ */
+export function binaryFlyby(aim = -2) {
+  const v = Math.SQRT1_2; // circular for two unit masses 1 apart
+  return makeSystem([1, 1, 1], [[0.5, 0], [-0.5, 0], [-12, aim]], [[0, v], [0, -v], [1, 0]], 0.03);
+}
+
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
-// tides: arrows on; particles: made of particles (these
+// tides: arrows on; trail: starting trail length; particles: made of particles (these
 // step themselves, and can't be compared: too heavy); extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
@@ -164,6 +194,20 @@ export const SCENARIOS = {
     about: "The butterfly effect: 30 almost identical copies scatter." },
   twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "twin",
     about: "A nudged ghost copy: identical at first, then not." },
+
+  flyby: { label: "Binary flyby", group: "Chaos", make: () => binaryFlyby(), t: 40, eta: 0.004, extent: 6,
+    about: "A passing star steals one of a pair, and throws the other out." },
+
+  cross: { label: "Cross", group: "Stable patterns", make: () => periodicOrbit(PATTERNS.cross), t: 2 * PATTERNS.cross.T, eta: 0.003, trail: 3600,
+    about: "A pair crosses at the centre as a third circles them." },
+  flower: { label: "Flower", group: "Stable patterns", make: () => periodicOrbit(PATTERNS.flower), t: 2 * PATTERNS.flower.T, eta: 0.003, trail: 3600,
+    about: "A pair draws petals inside a third body's circle." },
+  rosette: { label: "Rosette", group: "Stable patterns", make: () => periodicOrbit(PATTERNS.rosette), t: 2 * PATTERNS.rosette.T, eta: 0.003, trail: 3600,
+    about: "Two bodies share one star-shaped path." },
+  loops: { label: "Loops", group: "Stable patterns", make: () => periodicOrbit(PATTERNS.loops), t: 3 * PATTERNS.loops.T, eta: 0.003, trail: 3600,
+    about: "Two bodies loop inside a third body's big circle." },
+  moth: { label: "Moth", group: "Stable patterns", make: () => periodicOrbit(PATTERNS.moth), t: 2 * PATTERNS.moth.T, eta: 0.003, trail: 3600,
+    about: "Looks like a chaotic tangle, but repeats exactly." },
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
     about: "Two planets collide and merge." },

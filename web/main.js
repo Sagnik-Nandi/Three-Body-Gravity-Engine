@@ -10,6 +10,7 @@ import { startTour } from "./tour.js";
 const COLORS = ["#f5a623", "#4a90e2", "#d0021b", "#7ed321", "#9013fe"];
 const BACKGROUND = new THREE.Color("#0b0e14");
 const MAX_TRAIL = 5000; // trail points kept per body (the slider picks how many to show)
+const DEFAULT_TRAIL = 1500; // points shown, unless a preset asks for another
 const CLOUD_TRAIL = 300; // shorter trails for the many copies of the cloud
 const CLOUD_SIZE = 30; // nudged copies in cloud mode
 const PLAYBACK_SECONDS = 15; // at 1x speed a preset's suggested run lasts this long
@@ -711,6 +712,11 @@ function setSpeed(multiplier) {
   ui["speed-value"].textContent = `${speedMultiplier().toFixed(speedMultiplier() < 1 ? 2 : 1)}×`;
 }
 
+function setTrail(points) {
+  ui.trail.value = points;
+  ui["trail-value"].textContent = ui.trail.value;
+}
+
 function setPlaying(value) {
   playing = value;
   ui["icon-pause"].hidden = !playing;
@@ -741,6 +747,7 @@ function selectPreset(name) {
   const next = SCENARIOS[name];
   mode = next.chaos ?? "off";
   setSpeed(1);
+  setTrail(next.trail ?? DEFAULT_TRAIL);
   ui.tides.checked = Boolean(next.tides);
   setPlaying(true);
   load(name);
@@ -794,7 +801,7 @@ ui.play.addEventListener("click", () => setPlaying(!playing));
 ui.reset.addEventListener("click", restart);
 ui.speed.addEventListener("input", () => setSpeed(speedMultiplier()));
 ui.speed.addEventListener("change", updateUrl);
-ui.trail.addEventListener("input", () => { ui["trail-value"].textContent = ui.trail.value; });
+ui.trail.addEventListener("input", () => setTrail(ui.trail.value));
 ui.tides.addEventListener("change", updateUrl);
 ui["view-angle"].addEventListener("click", () => setView("angle"));
 ui["view-top"].addEventListener("click", () => setView("top"));
@@ -872,6 +879,7 @@ const requested = params.get("preset");
 const startName = requested in SCENARIOS ? requested : "figure8";
 const startPreset = SCENARIOS[startName];
 setSpeed(Number(params.get("speed")) || 1);
+setTrail(startPreset.trail ?? DEFAULT_TRAIL);
 ui.tides.checked = params.has("tides") ? params.get("tides") === "1" : Boolean(startPreset.tides);
 mode = startPreset.chaos ?? "off";
 if (["off", "twin", "split", "cloud"].includes(params.get("chaos"))) mode = params.get("chaos");

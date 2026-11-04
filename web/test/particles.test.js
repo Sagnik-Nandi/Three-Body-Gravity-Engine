@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { ParticleSystem, cometFlyby, moonInOrbit, packedSphere, rubbleSystem } from "../particles.js";
-import { SCENARIOS, headOn } from "../scenarios.js";
+import { PATTERNS, SCENARIOS, binaryFlyby, headOn, periodicOrbit } from "../scenarios.js";
 
 const close = (a, b, tol, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what} ${a} vs ${b} (tol ${tol})`);
@@ -212,4 +212,41 @@ test("every preset runs without NaN", () => {
     assert.ok(Number.isFinite(s.energyBudget()), `${name} energy`);
     for (const v of s.pos.subarray(0, 3 * s.n)) assert.ok(Number.isFinite(v), name);
   }
+});
+
+for (const [name, orbit] of Object.entries(PATTERNS)) {
+  test(`${name} returns to its start after one period`, () => {
+    const s = periodicOrbit(orbit);
+    const start = s.pos.slice();
+    s.advanceTo(orbit.T, 0.002);
+    // Loose: the gallery's periods are about 0.0005 off, though the orbits do close
+    // (at the true period they still return within ~1e-4 after 50 periods).
+    s.pos.forEach((x, k) => close(x, start[k], 2e-3, `coordinate ${k}`));
+  });
+
+  test(`${name} survives a 1e-4 nudge, keeping its size`, () => {
+    const s = periodicOrbit(orbit);
+    const reach = (sim) => Math.max(...[0, 1, 2].map((i) => Math.hypot(sim.pos[3 * i], sim.pos[3 * i + 1])));
+    let size = 0;
+    const clean = periodicOrbit(orbit);
+    for (let k = 1; k <= 20; k++) { clean.advanceTo((k / 20) * orbit.T, 0.003); size = Math.max(size, reach(clean)); }
+    s.pos[0] += 1e-4;
+    s.merge = true;
+    const minScale = 1e-8 * s.timescale();
+    for (let t = 1; t <= 40; t++) {
+      s.advanceTo(t, 0.003, minScale);
+      assert.equal(s.n, 3, "no collision");
+      assert.ok(reach(s) < 1.2 * size, `t=${t}: reach ${reach(s)} vs ${size}`);
+    }
+  });
+}
+
+test("binary flyby: the passing star keeps one partner and throws the other out", () => {
+  const s = binaryFlyby();
+  s.merge = true;
+  s.advanceTo(60, 0.004);
+  assert.equal(s.n, 3, "no collision");
+  const d = (i, j) => Math.hypot(s.pos[3 * i] - s.pos[3 * j], s.pos[3 * i + 1] - s.pos[3 * j + 1]);
+  assert.ok(d(0, 2) < 3, `new pair: distance ${d(0, 2)}`);
+  assert.ok(d(1, 0) > 15 && d(1, 2) > 15, `old partner thrown out: ${d(1, 0)}`);
 });
