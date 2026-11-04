@@ -16,11 +16,13 @@ export class System {
   /**
    * A set of bodies interacting through Newtonian gravity, in 3D.
    * masses: [n]; positions, velocities: [[x, y, z], ...];
-   * radii: body sizes (touching = collision, stops the run); omit for point masses.
+   * radii: body sizes (touching = collision); omit for point masses.
    * softening: small length added to distances so close encounters
    *            don't produce infinite forces.
+   * merge: what a collision does. false: the run stops (this.collision is set).
+   *        true: the two bodies become one and the run goes on.
    */
-  constructor({ masses, positions, velocities, radii = null, G = 1, softening = 0 }) {
+  constructor({ masses, positions, velocities, radii = null, G = 1, softening = 0, merge = false }) {
     this.n = masses.length;
     this.masses = Float64Array.from(masses);
     this.pos = Float64Array.from(positions.flat());
@@ -30,7 +32,75 @@ export class System {
     this.softening = softening;
     this.time = 0;
     this.collision = null; // [i, j] once two bodies have touched
+    this.merge = merge;
+    // Merging renumbers bodies, so each keeps the id it started with.
+    this.ids = Int32Array.from({ length: this.n }, (_, i) => i);
+    this.mergedInto = new Map(); // id of an absorbed body -> id that absorbed it
+    this.merges = []; // {time, survivor, absorbed, position, heat}, in order
+    this.heat = 0; // kinetic energy of the bodies' collisions, turned into heat
+    this.internalEnergy = 0; // all energy that left the orbits; see energyBudget()
+    this.spinL = [0, 0, 0]; // orbital angular momentum turned into the bodies' spin
     this._acc = new Float64Array(3 * this.n);
+  }
+
+  /** Current index of a body by its starting id; -1 if it has been absorbed. */
+  indexOfId(id) {
+    return this.ids.indexOf(id);
+  }
+
+  /** Current index of the body now holding id's mass (follows merges). */
+  holderOf(id) {
+    while (this.mergedInto.has(id)) id = this.mergedInto.get(id);
+    return this.ids.indexOf(id);
+  }
+
+  /**
+   * Bodies i and j become one (the heavier keeps its identity). Conserves mass,
+   * momentum and volume; the merged body sits at their centre of mass. Their
+   * relative kinetic energy becomes heat, and their relative angular momentum
+   * becomes spin (tracked as a total, since bodies here are points).
+   */
+  mergeBodies(i, j) {
+    const { masses, pos, vel, radii } = this;
+    if (masses[j] > masses[i]) [i, j] = [j, i];
+    const before = this.energy();
+    const [mi, mj] = [masses[i], masses[j]];
+    const M = mi + mj;
+    const reduced = (mi * mj) / M;
+    const d = [0, 1, 2].map((c) => pos[3 * j + c] - pos[3 * i + c]);
+    const v = [0, 1, 2].map((c) => vel[3 * j + c] - vel[3 * i + c]);
+    this.spinL[0] += reduced * (d[1] * v[2] - d[2] * v[1]);
+    this.spinL[1] += reduced * (d[2] * v[0] - d[0] * v[2]);
+    this.spinL[2] += reduced * (d[0] * v[1] - d[1] * v[0]);
+    const heat = 0.5 * reduced * (v[0] ** 2 + v[1] ** 2 + v[2] ** 2);
+    for (let c = 0; c < 3; c++) {
+      pos[3 * i + c] = (mi * pos[3 * i + c] + mj * pos[3 * j + c]) / M;
+      vel[3 * i + c] = (mi * vel[3 * i + c] + mj * vel[3 * j + c]) / M;
+    }
+    masses[i] = M;
+    radii[i] = Math.cbrt(radii[i] ** 3 + radii[j] ** 3);
+    const [survivor, absorbed] = [this.ids[i], this.ids[j]];
+    this.mergedInto.set(absorbed, survivor);
+
+    // Remove body j from every array.
+    const without = (a, size) => {
+      const out = new a.constructor(a.length - size);
+      out.set(a.subarray(0, size * j));
+      out.set(a.subarray(size * (j + 1)), size * j);
+      return out;
+    };
+    this.masses = without(masses, 1);
+    this.radii = without(radii, 1);
+    this.ids = without(this.ids, 1);
+    this.pos = without(pos, 3);
+    this.vel = without(vel, 3);
+    this.n -= 1;
+    this._acc = new Float64Array(3 * this.n);
+
+    this.heat += heat;
+    this.internalEnergy += before - this.energy();
+    const k = this.ids.indexOf(survivor);
+    this.merges.push({ time: this.time, survivor, absorbed, position: this.position(k), heat });
   }
 
   /** Position of body i as [x, y, z]. */
@@ -125,9 +195,10 @@ export class System {
 
   /**
    * Step adaptively (dt = eta * timescale()) until time tNext, or until two
-   * bodies collide. minScale: for point masses, a timescale below this means
-   * they are about to hit (the force is blowing up) and counts as a collision.
-   * Returns true if a collision happened (this.collision is then set).
+   * bodies collide (with merge on: merging them and carrying on). minScale: for
+   * point masses, a timescale below this means they are about to hit (the force
+   * is blowing up) and counts as a collision.
+   * Returns true if the run stopped on a collision (this.collision is then set).
    * This is what a live animation calls once per screen frame.
    */
   advanceTo(tNext, eta = 0.01, minScale = 0) {
@@ -136,6 +207,10 @@ export class System {
       let pair = this.touchingPair();
       if (pair === null && scale < minScale) pair = this._closestPair();
       if (pair !== null) {
+        if (this.merge) {
+          this.mergeBodies(...pair);
+          continue;
+        }
         this.collision = pair;
         break;
       }
@@ -191,6 +266,45 @@ export class System {
     return this.kineticEnergy() + this.potentialEnergy();
   }
 
+  /**
+   * Energy of the orbits plus what collisions moved inside bodies. Unlike
+   * energy(), which really drops at a collision, this stays constant, so its
+   * drift measures numerical error alone.
+   */
+  energyBudget() {
+    return this.energy() + this.internalEnergy;
+  }
+
+  /**
+   * Tidal tensor at point (x, y, z): T such that a spot displaced by d feels
+   * T*d more than the point itself, from the first `count` bodies except `skip`.
+   * Returned as the 9 entries of a symmetric 3x3 matrix, row by row. A mass M at
+   * distance r stretches by 2GM/r^3 along the line to it and squeezes by GM/r^3
+   * across it. Use tidalTensorOn(i) for a body.
+   */
+  tidalTensor(x, y, z, count = this.n, skip = -1) {
+    const T = new Array(9).fill(0);
+    const e2 = this.softening ** 2;
+    for (let j = 0; j < count; j++) {
+      if (j === skip) continue;
+      const d = [this.pos[3 * j] - x, this.pos[3 * j + 1] - y, this.pos[3 * j + 2] - z];
+      const s2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + e2;
+      const s = Math.sqrt(s2);
+      const a = (this.G * this.masses[j]) / (s2 * s);
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          T[3 * row + col] += (3 * a * d[row] * d[col]) / s2 - (row === col ? a : 0);
+        }
+      }
+    }
+    return T;
+  }
+
+  /** Tidal tensor on body i from all the others. */
+  tidalTensorOn(i) {
+    return this.tidalTensor(this.pos[3 * i], this.pos[3 * i + 1], this.pos[3 * i + 2], this.n, i);
+  }
+
   momentum() {
     const p = [0, 0, 0];
     for (let i = 0; i < this.n; i++) {
@@ -199,7 +313,8 @@ export class System {
     return p;
   }
 
-  /** Total L = sum m (r x v). Constant in time; perpendicular to the orbital plane. */
+  /** Total L = sum m (r x v). Constant in time, until a merge moves part of it
+   *  into spinL; perpendicular to the orbital plane. */
   angularMomentum() {
     const L = [0, 0, 0];
     for (let i = 0; i < this.n; i++) {
