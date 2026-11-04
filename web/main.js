@@ -930,7 +930,7 @@ const TOUR_STEPS = [
     text: "Bodies collide and merge. This moon is 1,000 rocks, and tides are tearing it apart." },
   { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },
     title: "Look around",
-    text: "Drag to rotate, scroll to zoom. <kbd>Space</kbd> pauses, <kbd>H</kbd> hides the panel." },
+    text: "Drag to rotate, scroll to zoom. <kbd>Space</kbd> pauses, <kbd>R</kbd> restarts, <kbd>H</kbd> hides the panel." },
 ];
 
 function setIntroVisible(visible) {
@@ -957,6 +957,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     e.preventDefault();
     setPlaying(!playing);
+  } else if (e.code === "KeyR" && !e.ctrlKey && !e.metaKey) { // Ctrl+R still reloads the page
+    restart();
   } else if (e.code === "KeyH") {
     setPanelVisible(document.getElementById("panel").hidden);
   }

@@ -91,7 +91,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
   The plain address opens with all of them and a line about each; click one to run it.
   **Quick tour** (also under **?**) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
-- **Play/pause** (or the space bar), **restart**, and **speed** from 0.1x to 10x. At 1x a preset's
+- **Play/pause** (or the space bar), **restart** (or the R key), and **speed** from 0.1x to 10x. At 1x a preset's
   suggested run lasts ~15 s, then it keeps going. Particle presets run as fast as your
   machine allows, so high speeds may not go any faster.
 - **✕** (or the H key) hides the controls so the view fills the window; **☰** brings them back.
