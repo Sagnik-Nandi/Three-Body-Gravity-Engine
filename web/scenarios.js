@@ -1,7 +1,7 @@
 // Starting configurations (G = 1). JavaScript port of scenarios.py:
 // each function returns an engine System.
 import { System } from "./engine.js";
-import { cometFlyby, moonInOrbit } from "./particles.js";
+import { cometFlyby, cometImpact, moonInOrbit } from "./particles.js";
 
 /** Equal-density bodies: radius grows as the cube root of mass. */
 export function radiusForMass(m, size = 0.1) {
@@ -133,11 +133,6 @@ export function headOn() {
   return makeSystem([star, a, b], [[0, 0], [r, 0], [-r, 0]], [[0, 0], [0, v], [0, v]], 0.1);
 }
 
-/** A moon on a very eccentric orbit, so the tides on it surge at closest approach. */
-export function eccentricMoon() {
-  return twoBody(100, 1, 10, 0.5, 0.05);
-}
-
 /**
  * Periodic orbits of three equal masses (unless `masses` says otherwise). Numbers: the refined starting values from
  * Three Body Orbits, https://www.threebodyorbits.com (CC BY 4.0). Orbits: Broucke
@@ -167,11 +162,22 @@ export function binaryFlyby(aim = -2) {
   return makeSystem([1, 1, 1], [[0.5, 0], [-0.5, 0], [-12, aim]], [[0, v], [0, -v], [1, 0]], 0.03);
 }
 
+/**
+ * A Sun, a spinning planet, and an object a fifth of the planet's mass from outside
+ * the system. It clips the planet and throws out a clump that orbits as a moon for a
+ * while. These settings gave the longest-lived moon found, but in a scan of 84 impacts
+ * none lasted: every clump's orbit dips inside the Roche limit, so it falls back.
+ */
+export function giantImpact() {
+  const massRatio = 0.2;
+  return cometImpact({ massRatio, speed: 1, spin: 0.7, closest: 0.8 * (1 + Math.cbrt(massRatio)), orbit: 40, sunMass: 30 });
+}
+
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
 // tides: arrows on; trail: starting trail length; particles: made of particles (these
-// step themselves, and can't be compared: too heavy); extent: size of the view,
+// step themselves, and can't be compared: too heavy); follow: the camera stays with the planet; extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
   "two-body": { label: "Two-body", group: "Orbits", make: () => twoBody(10, 1, 10), t: 100, eta: 0.01,
@@ -210,14 +216,12 @@ export const SCENARIOS = {
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
     about: "Two planets collide and merge." },
-  tides: { label: "Tides", group: "Impacts & tides", make: () => eccentricMoon(), t: 18, eta: 0.01, tides: true,
-    about: "Tides surge at each close pass." },
   "moon-holds": { label: "Moon holds", group: "Impacts & tides", make: () => moonInOrbit({ distance: 11 }), t: 57, tides: true, particles: true,
     about: "Outside the Roche limit, gravity holds 1,000 rocks together." },
   "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 45, tides: true, particles: true, extent: 11,
     about: "Inside the Roche limit, tides win." },
-  debris: { label: "Debris disk", group: "Impacts & tides", make: () => moonInOrbit({ distance: 6 }), t: 50, particles: true, extent: 11,
-    about: "A shredded moon spreads into a disk around its planet." },
+  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 6, follow: true,
+    about: "A huge hit throws out a moon, but it can't last: it falls back." },
   comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 16,
     about: "One close pass pulls a comet into a string." },
 };

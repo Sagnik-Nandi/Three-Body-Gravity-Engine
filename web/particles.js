@@ -16,6 +16,7 @@ import { System } from "./engine.js";
 const MAX_OVERLAP = 0.05;
 const STEPS_PER_CONTACT = 16; // substeps during one bounce between two particles
 const SUBSTEPS = 8; // contact substeps per gravity calculation
+const CLEAR_OF_PLANET = 1.6; // rocks nearer than this, in planet radii, may be its bulge
 const DAMPING_RATIO = 0.3; // how much of a bounce's energy goes to heat
 
 /** A cell and half of its 26 neighbours, so each neighbouring pair is seen once. Own cell first. */
@@ -341,6 +342,19 @@ export class ParticleSystem extends System {
     return M > 0 ? c.map((x) => x / M) : c;
   }
 
+  /** Centre of the rocks that started in the planet, in an impact. */
+  planetCentre() {
+    const c = [0, 0, 0];
+    let count = 0;
+    for (let i = this.nBig; i < this.n; i++) {
+      if (this.ids[i] < this.cometFrom) {
+        count++;
+        for (let k = 0; k < 3; k++) c[k] += this.pos[3 * i + k];
+      }
+    }
+    return c.map((x) => x / (count || 1));
+  }
+
   /** Root-mean-square distance of the particles from their centre: how spread out they are. */
   spread() {
     const c = this.particleCentre();
@@ -471,4 +485,152 @@ export function cometFlyby({ closest, start, planetMass = 64, planetRadius = 2.5
       position: [start * c, start * s, 0],
       velocity: [radial * c - across * s, radial * s + across * c, 0] },
   });
+}
+
+/**
+ * A Sun (a single point with a surface), a rubble-pile planet orbiting it, and a
+ * rubble-pile comet from outside the system that hits the planet.
+ * n: rocks in total. massRatio: comet's mass / planet's mass.
+ * speed: relative speed at contact, as a multiple of their mutual escape speed.
+ * offset: impact parameter at contact, 0 head-on, 1 a grazing hit.
+ * approach: how long before contact the run starts. The contact is set first and
+ * the three bodies are run backwards from it, so the comet really does arrive.
+ * closest: instead of offset, the distance between centres at the closest point of
+ * the path; just over the sum of their radii is a near miss, and speed is then
+ * measured there. A grazing pass lets tides tear the comet up.
+ * spin: the planet's spin (radians per time, about z), 1 being about where a same-size
+ * planet of mass 1 would fly apart.
+ */
+export function cometImpact({ n = 1000, massRatio = 0.1, speed = 1.2, offset = 0.7, angle = 2.4, approach = 8, spin = 0, closest = null,
+  sunMass = 30, orbit = 15, planetMass = 1, planetRadius = 1, dampingRatio = DAMPING_RATIO, G = 1 }) {
+  const fraction = massRatio / (1 + massRatio);
+  const { points: planet, spacing } = packedSphere(Math.round(n * (1 - fraction)), planetRadius);
+  const cometRadius = planetRadius * Math.cbrt(massRatio);
+  const { points: comet } = packedSphere(Math.round(n * fraction), cometRadius, 2);
+  const a = spacing / 2;
+  const m = planetMass / planet.length;
+  const cometMass = m * comet.length;
+
+  const pressure = ((3 / (8 * Math.PI)) * G * planetMass ** 2) / planetRadius ** 4;
+  const stiffness = (pressure * 4 * a * a) / (MAX_OVERLAP * a);
+  const reduced = m / 2;
+  const contactTime = Math.PI * Math.sqrt(reduced / stiffness);
+  const damping = 2 * dampingRatio * Math.sqrt(stiffness * reduced);
+  const dt = SUBSTEPS * (contactTime / STEPS_PER_CONTACT);
+  const stillSpeed = 2 * ((G * planetMass) / planetRadius ** 2) * dt * ((2 * a) / planetRadius);
+
+  // The moment of contact, with the planet on a circular orbit.
+  const contact = closest ?? planetRadius + cometRadius;
+  const vContact = speed * Math.sqrt((2 * G * (planetMass + cometMass)) / contact);
+  const vOrbit = Math.sqrt((G * (sunMass + planetMass)) / orbit);
+  const [cx, cy] = [Math.cos(angle), Math.sin(angle)]; // where on the planet it lands
+  const across = closest === null ? offset : 1; // at the closest point, it's all sideways
+  const radial = -Math.sqrt(1 - across ** 2); // towards the planet
+  const contactState = {
+    masses: [sunMass, planetMass, cometMass],
+    positions: [[0, 0, 0], [orbit, 0, 0], [orbit + contact * cx, contact * cy, 0]],
+    velocities: [[0, 0, 0], [0, vOrbit, 0],
+      [vContact * (radial * cx - across * cy), vOrbit + vContact * (radial * cy + across * cx), 0]],
+  };
+  // Back to the start: flip the velocities, run forward, flip them again.
+  const back = new System({ ...contactState, G,
+    velocities: contactState.velocities.map(([x, y, z]) => [-x, -y, -z]) });
+  back.advanceTo(approach, 0.002);
+  const at = (i) => ({ p: back.position(i), v: [-back.vel[3 * i], -back.vel[3 * i + 1], -back.vel[3 * i + 2]] });
+  const [sunStart, planetStart, cometStart] = [at(0), at(1), at(2)];
+
+  const masses = [sunMass];
+  const radii = [planetRadius * Math.cbrt(sunMass / planetMass)];
+  const positions = [sunStart.p];
+  const velocities = [sunStart.v];
+  const addRocks = (points, { p, v }, turn = 0) => {
+    for (const [x, y, z] of points) {
+      masses.push(m);
+      radii.push(a);
+      positions.push([p[0] + x, p[1] + y, p[2] + z]);
+      velocities.push([v[0] - turn * y, v[1] + turn * x, v[2]]);
+    }
+  };
+  addRocks(planet, planetStart, spin);
+  addRocks(comet, cometStart);
+  const M = masses.reduce((sum, v) => sum + v, 0);
+  for (const vectors of [positions, velocities]) {
+    for (let c = 0; c < 3; c++) {
+      const mean = vectors.reduce((sum, v, i) => sum + masses[i] * v[c], 0) / M;
+      for (const v of vectors) v[c] -= mean;
+    }
+  }
+  const sim = new ParticleSystem({ masses, positions, velocities, radii, G, nBig: 1,
+    softening: a, stiffness, damping, stillSpeed, dt, substeps: SUBSTEPS });
+  sim.cometFrom = 1 + planet.length; // rocks with this id or higher began in the comet
+  sim.planetRadius = planetRadius;
+  sim.hillRadius = orbit * Math.cbrt(planetMass / (3 * sunMass)); // beyond this, the Sun wins
+  return sim;
+}
+
+/**
+ * What an impact left behind. The planet is the dense core, found by repeatedly
+ * averaging the rocks near the centre of those that started in it. Every other
+ * rock's orbit around the core is then: escaping (unbound, or reaching so far the
+ * Sun would take it), falling back (the orbit dips below the surface), or truly in
+ * orbit, which also means clear of the planet right now, since a spinning planet
+ * bulges and its surface rocks would otherwise count.
+ * clump: the most rocks in one touching cluster in orbit (a forming moon).
+ */
+export function impactOutcome(sim) {
+  const { n, nBig, pos, vel, masses, G } = sim;
+  let c = sim.planetCentre();
+  let keep = [];
+  for (let pass = 0; pass < 8; pass++) {
+    keep = [];
+    for (let i = nBig; i < n; i++) {
+      if (Math.hypot(pos[3 * i] - c[0], pos[3 * i + 1] - c[1], pos[3 * i + 2] - c[2]) < 1.3 * sim.planetRadius) keep.push(i);
+    }
+    if (!keep.length) break;
+    const next = [0, 0, 0];
+    for (const i of keep) for (let k = 0; k < 3; k++) next[k] += pos[3 * i + k] / keep.length;
+    c = next;
+  }
+  const v = [0, 0, 0];
+  let M = 0;
+  for (const i of keep) {
+    M += masses[i];
+    for (let k = 0; k < 3; k++) v[k] += masses[i] * vel[3 * i + k];
+  }
+  for (let k = 0; k < 3; k++) v[k] /= M || 1;
+  const inCore = new Set(keep);
+  const surface = 1.1 * sim.planetRadius;
+  const orbiting = [];
+  const distances = [];
+  let escaped = 0;
+  let falling = 0;
+  for (let i = nBig; i < n; i++) {
+    if (inCore.has(i)) continue;
+    const d = [0, 1, 2].map((k) => pos[3 * i + k] - c[k]);
+    const u = [0, 1, 2].map((k) => vel[3 * i + k] - v[k]);
+    const r = Math.hypot(...d);
+    const energy = 0.5 * (u[0] ** 2 + u[1] ** 2 + u[2] ** 2) - (G * M) / r;
+    if (energy >= 0) { escaped++; continue; }
+    const h = Math.hypot(d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]);
+    const semi = (-G * M) / (2 * energy);
+    const e = Math.sqrt(Math.max(1 - (h * h) / (G * M * semi), 0));
+    if (semi * (1 + e) > sim.hillRadius) escaped++;
+    else if (semi * (1 - e) < surface) falling++;
+    else if (r < CLEAR_OF_PLANET * sim.planetRadius) falling++;
+    else { orbiting.push(i); distances.push(r); }
+  }
+  const parent = new Map(orbiting.map((i) => [i, i]));
+  const find = (i) => { while (parent.get(i) !== i) { parent.set(i, parent.get(parent.get(i))); i = parent.get(i); } return i; };
+  const reach = 2.6 * sim.radii[nBig];
+  for (let p = 0; p < orbiting.length; p++) {
+    for (let q = p + 1; q < orbiting.length; q++) {
+      const [i, j] = [orbiting[p], orbiting[q]];
+      if (Math.hypot(pos[3 * i] - pos[3 * j], pos[3 * i + 1] - pos[3 * j + 1], pos[3 * i + 2] - pos[3 * j + 2]) < reach) parent.set(find(i), find(j));
+    }
+  }
+  const sizes = new Map();
+  for (const i of orbiting) sizes.set(find(i), (sizes.get(find(i)) ?? 0) + 1);
+  distances.sort((p, q) => p - q);
+  return { core: keep.length, orbiting: orbiting.length, escaped, falling, clump: Math.max(0, ...sizes.values()),
+    rMedian: distances[Math.floor(distances.length / 2)] ?? 0, rMax: distances.at(-1) ?? 0 };
 }

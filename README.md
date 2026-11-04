@@ -73,10 +73,9 @@ The web view adds more (see [Impacts and tides](#impacts-and-tides)):
 | `flyby` | A star passes a tight pair, keeps one as a new partner and throws the other out | The new pair stays together; the old partner leaves |
 | `flower`, `rosette`, `trefoil`, `loops`, `choreography` | Clean repeating patterns; only `flower` and `rosette` are stable | All return to the start after one period; `flower` and `rosette` survive a nudge; `choreography` leaves its path within 5 periods |
 | `head-on` | Two planets meet head-on and merge; the survivor swings around the star | One merge; momentum and energy budget balance |
-| `tides` | Tide arrows on a moon, surging at each close pass | Arrows use the tidal tensor, checked against the real difference in gravity |
 | `moon-holds` | 1,000 rocks stay a moon, outside the Roche limit | Keeps its shape over 3 orbits |
 | `moon-torn` | The same moon closer in: stretched into a spiral | Comes apart between the rigid and fluid limits |
-| `debris` | A shredded moon spreads into a flat, wide disk | Conserves momentum and angular momentum to ~1e-15 |
+| `impact` | A Sun, a planet, and an object that clips it, throwing out a temporary moon | The contact happens when set; momentum and angular momentum exact; a clump forms in orbit |
 | `comet` | One close pass pulls a comet into a string, and some of it hits the planet | Intact if the pass is distant, torn if close |
 
 `lagrange` and `euler` are exact but *unstable* solutions, like a pencil
@@ -233,8 +232,12 @@ breakup with many impacts. The results are **qualitatively right but not predict
 1,000 rocks are coarse, there is no friction or material strength, and impacts don't melt
 or vaporise anything. Exact fragments would differ with a different number of rocks.
 
-The debris disk is flat but wide rather than a thin ring. Sharpening it into a ring would
-take far more collisions than 1,000 rocks make in a few orbits.
+**Giant impact.** The planet and impactor are both rocks, and the Sun is a point. The contact
+is set first, then run backwards, so the impactor really arrives from deep space. It throws out a
+clump that orbits as a moon, but no lasting moon or disk formed in a scan of 84 impacts: each
+clump's orbit dips inside the Roche limit, so it is shredded or falls back. Real moon-forming
+impacts have melt and vapour pressure, which can push debris onto wider orbits; these rocks have
+neither. This preset uses the settings that kept a moon longest.
 
 ## Tests
 
@@ -293,8 +296,9 @@ python web/test/make_reference.py
 - [x] Chaos comparison: twin, split screen, cloud of nudged copies
 - [x] Welcome page with presets up front, and a short guided tour
 - [x] Merging collisions and tide arrows
-- [x] Bodies made of particles: Roche breakup, comet, debris disk
-- [ ] Particle impacts on the GPU (~10,000 particles)
+- [x] Bodies made of particles: Roche breakup, comet
+- [x] Giant impact on the CPU: a temporary moon (a lasting one would need more physics)
+- [ ] Bigger impacts on the GPU (~10,000 particles)
 - [ ] Stability sliders and 4-body presets
 - [ ] Drag-to-launch: place bodies and set their velocity with the mouse
 - [ ] Solar system with real data and a relativity correction

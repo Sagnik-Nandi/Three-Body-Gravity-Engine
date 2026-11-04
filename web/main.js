@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import { stretchAxis } from "./engine.js";
+import { impactOutcome } from "./particles.js";
 import { SCENARIOS } from "./scenarios.js";
 import { startTour } from "./tour.js";
 
@@ -26,6 +27,7 @@ const FLASH_SECONDS = 1.2; // how long a merge's flash lasts
 const FLASH_SIZE = 0.09; // its final radius, as a fraction of the scene size
 const ROCK_COLORS = ["#c8ccd4", "#8d94a3"]; // moon particles: alternating wedges, so shearing shows
 const ROCK_CORE = "#e8a04d"; // inner half of the moon
+const ROCK_IMPACTOR = "#ff5a3c"; // the object that hits, in an impact
 const ROCK_WEDGES = 8;
 
 // The physics uses x-y as the orbital plane (z up); three.js has y up.
@@ -205,15 +207,16 @@ function makeRocks(run) {
   const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1),
     new THREE.MeshStandardMaterial({ roughness: 0.85 }), sim.startCount);
   rocks.frustumCulled = false;
-  const [cx, cy, cz] = sim.particleCentre();
+  const [cx, cy, cz] = sim.cometFrom ? sim.planetCentre() : sim.particleCentre();
   run.moonSpread = sim.spread();
-  run.moonRadius = run.moonSpread / Math.sqrt(0.6); // rms radius of a uniform ball
+  run.moonRadius = sim.planetRadius ?? run.moonSpread / Math.sqrt(0.6); // rms radius of a uniform ball
   run.rockColors = [];
   for (let i = sim.nBig; i < sim.n; i++) {
     const [x, y, z] = [sim.pos[3 * i] - cx, sim.pos[3 * i + 1] - cy, sim.pos[3 * i + 2] - cz];
     const wedge = Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * ROCK_WEDGES) % 2;
     const core = Math.hypot(x, y, z) < 0.5 * run.moonRadius;
-    run.rockColors.push(new THREE.Color(core ? ROCK_CORE : ROCK_COLORS[wedge]));
+    const isImpactor = sim.cometFrom && sim.ids[i] >= sim.cometFrom;
+    run.rockColors.push(new THREE.Color(isImpactor ? ROCK_IMPACTOR : core ? ROCK_CORE : ROCK_COLORS[wedge]));
     rocks.setColorAt(i - sim.nBig, run.rockColors.at(-1));
   }
   rocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -370,7 +373,7 @@ const ui = Object.fromEntries(
     "trail", "trail-value", "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
     "chaos", "chaos-row", "nudge", "nudge-value", "chaos-panel", "chart", "horizon", "split-labels",
     "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start",
-    "tides", "heat", "heat-row", "count", "count-row"]
+    "tides", "heat", "heat-row", "count", "count-row", "orbiting", "orbiting-row"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
@@ -385,6 +388,9 @@ let extent; // size of the starting configuration, sets camera and drawn sizes
 let playing = true;
 let gapHistory = []; // [time, gap] for the chart
 let horizon = null; // time the copies first visibly separated
+let floor = null; // the grid in the orbital plane
+const followed = new THREE.Vector3(); // where the view was last centred
+const UP = new THREE.Vector3(0, 1, 0);
 let tideLines = null;
 let tideReference = 1;
 let flashes = []; // merges being shown: {mesh, age}
@@ -412,7 +418,8 @@ function load(name) {
   if (!extent) for (let i = 0; i < sim.n; i++) extent = Math.max(extent, toScene(sim, i, tmp).length());
 
   // Faint floor grid in the orbital plane, for a sense of depth.
-  world.add(new THREE.GridHelper(niceSize(extent * 3), 20, 0x2a3140, 0x1a1f2b));
+  floor = new THREE.GridHelper(niceSize(extent * 3), 20, 0x2a3140, 0x1a1f2b);
+  world.add(floor);
 
   main = makeRun(sim, "solid");
   copies = [];
@@ -448,9 +455,11 @@ function load(name) {
   ui["split-labels"].hidden = mode !== "split";
   ui["split-right"].textContent = `Nudged by ${formatNudge(nudge)}`;
   ui["count-row"].hidden = !preset.particles;
+  ui["orbiting-row"].hidden = !preset.follow;
   ui["heat-row"].hidden = true;
   ui.status.textContent = "";
   setView("angle");
+  updateFollow();
   updateScene();
 }
 
@@ -480,9 +489,36 @@ function formatNudge(x) {
 function setView(kind) {
   const d = extent * 3.2;
   const directions = { angle: [0, 0.75, 1], top: [0, 1, 1e-4], side: [0, 0.02, 1] };
-  camera.position.set(...directions[kind]).normalize().multiplyScalar(d);
-  controls.target.set(0, 0, 0);
+  const centre = followPoint();
+  camera.position.set(...directions[kind]);
+  // A followed planet is seen from its far side, with the Sun behind it.
+  if (preset.follow && kind === "angle") camera.position.set(centre.x, 0.45 * centre.length(), centre.z);
+  camera.position.normalize().multiplyScalar(d).add(centre);
+  controls.target.copy(centre);
   controls.update();
+  followed.copy(centre);
+}
+
+/** The point the view stays on: the planet, for a preset that follows it. */
+function followPoint() {
+  if (!preset.follow) return new THREE.Vector3();
+  const [x, y, z] = main.sim.planetCentre();
+  return new THREE.Vector3(x, z, -y);
+}
+
+/** Move the camera and the floor grid along with the planet. */
+function updateFollow() {
+  if (!preset.follow) return;
+  const centre = followPoint();
+  // Turn with the orbit, so the Sun stays in view, and carry the camera along.
+  const turn = Math.atan2(followed.x, followed.z) - Math.atan2(centre.x, centre.z);
+  const offset = camera.position.clone().sub(controls.target);
+  offset.applyAxisAngle(UP, -turn);
+  controls.target.copy(centre);
+  camera.position.copy(centre).add(offset);
+  floor.position.set(centre.x, 0, centre.z);
+  floor.rotation.y = Math.atan2(centre.x, centre.z);
+  followed.copy(centre);
 }
 
 // ---- simulation loop --------------------------------------------------------
@@ -599,6 +635,7 @@ function updateScene(dt = 0) {
     ui.energy.textContent = Math.abs((sim.energyBudget() - e0) / e0).toExponential(1);
     ui["heat-row"].hidden = sim.heat <= 0;
     ui.heat.textContent = formatNumber(sim.heat);
+    if (preset.follow) ui.orbiting.textContent = impactOutcome(sim).orbiting;
   }
   if (preset.particles) ui.count.textContent = sim.particleCount;
   if (copies.length) {
@@ -650,6 +687,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1); // don't jump ahead after a stalled tab
   if (playing) advance(dt);
+  updateFollow();
   updateScene(dt);
   controls.update();
   render();

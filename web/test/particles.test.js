@@ -2,8 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ParticleSystem, cometFlyby, moonInOrbit, packedSphere, rubbleSystem } from "../particles.js";
-import { PATTERNS, SCENARIOS, binaryFlyby, headOn, periodicOrbit } from "../scenarios.js";
+import { ParticleSystem, cometFlyby, cometImpact, impactOutcome, moonInOrbit, packedSphere, rubbleSystem } from "../particles.js";
+import { PATTERNS, SCENARIOS, binaryFlyby, giantImpact, headOn, periodicOrbit } from "../scenarios.js";
 
 const close = (a, b, tol, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what} ${a} vs ${b} (tol ${tol})`);
@@ -263,4 +263,71 @@ test("binary flyby: the passing star keeps one partner and throws the other out"
   const d = (i, j) => Math.hypot(s.pos[3 * i] - s.pos[3 * j], s.pos[3 * i + 1] - s.pos[3 * j + 1]);
   assert.ok(d(0, 2) < 3, `new pair: distance ${d(0, 2)}`);
   assert.ok(d(1, 0) > 15 && d(1, 2) > 15, `old partner thrown out: ${d(1, 0)}`);
+});
+
+test("the comet arrives: run back from contact, it hits at the time set", () => {
+  const s = cometImpact({ n: 300, massRatio: 0.1, offset: 0.7, speed: 1.2, approach: 8, orbit: 40 });
+  const gap = () => {
+    const [p, q] = [[0, 0, 0], [0, 0, 0]];
+    const count = [0, 0];
+    for (let i = s.nBig; i < s.n; i++) {
+      const g = s.ids[i] >= s.cometFrom ? 1 : 0;
+      count[g]++;
+      for (let k = 0; k < 3; k++) (g ? q : p)[k] += s.pos[3 * i + k];
+    }
+    return Math.hypot(...[0, 1, 2].map((k) => p[k] / count[0] - q[k] / count[1]));
+  };
+  const contact = 1 + Math.cbrt(0.1);
+  assert.ok(gap() > 3 * contact, `starts far off: ${gap()}`);
+  s.advanceTo(8);
+  close(gap(), contact, 0.1, "touching at t = 8");
+});
+
+test("an impact conserves momentum and angular momentum exactly", () => {
+  const s = cometImpact({ n: 300, massRatio: 0.3, offset: 0.7, speed: 1.1, orbit: 40 });
+  const p0 = s.momentum();
+  const L0 = s.angularMomentum();
+  const size = Math.hypot(...L0);
+  s.advanceTo(15);
+  assert.equal(s.particleCount, s.startCount, "nothing reached the Sun");
+  s.momentum().forEach((p, c) => close(p, p0[c], 1e-10, "momentum"));
+  s.angularMomentum().forEach((L, c) => close(L, L0[c], 1e-10 * size, "angular momentum"));
+  assert.ok(s.heat > 0.01, `the crash made heat: ${s.heat}`);
+});
+
+test("impact outcome: sorts rocks into the planet, in orbit, falling back and escaping", () => {
+  const s = cometImpact({ n: 300, massRatio: 0.1, orbit: 400 });
+  // Move the comet's rocks by hand; the planet is centred where it is.
+  const c = s.planetCentre();
+  const rocks = [];
+  for (let i = s.nBig; i < s.n; i++) if (s.ids[i] >= s.cometFrom) rocks.push(i);
+  let vx = 0, vy = 0, count = 0;
+  for (let i = s.nBig; i < s.n; i++) if (s.ids[i] < s.cometFrom) { vx += s.vel[3 * i]; vy += s.vel[3 * i + 1]; count++; }
+  [vx, vy] = [vx / count, vy / count];
+  const place = (i, r, along, across) => {
+    s.pos.set([c[0] + r, c[1], c[2]], 3 * i);
+    s.vel.set([vx + along, vy + across, 0], 3 * i);
+  };
+  const [orbiter, faller, escaper] = rocks;
+  place(orbiter, 3, 0, Math.sqrt(1 / 3)); // circular
+  place(faller, 3, 0, 0); // straight down
+  place(escaper, 3, 0, 2);
+  for (const [k, i] of rocks.slice(3).entries()) place(i, 40 + k, 0, 5); // out of the way, leaving
+  const o = impactOutcome(s);
+  assert.equal(o.orbiting, 1);
+  assert.equal(o.falling, 1);
+  assert.equal(o.escaped, rocks.length - 2);
+  assert.equal(o.clump, 1);
+});
+
+test("giant impact preset: a moon forms in orbit, then doesn't last", () => {
+  const s = giantImpact();
+  s.advanceTo(45);
+  const moon = impactOutcome(s);
+  assert.ok(moon.clump >= 30, `clump of ${moon.clump}`);
+  assert.ok(moon.rMedian > 1.6, `off the surface: ${moon.rMedian}`);
+  assert.equal(s.particleCount, s.startCount, "none in the Sun");
+  s.advanceTo(120);
+  const later = impactOutcome(s);
+  assert.ok(later.clump < moon.clump / 3, `gone by t = 120: clump of ${later.clump}`);
 });
