@@ -18,12 +18,12 @@
       font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
     #view { position: fixed; inset: 0; }
     #panel { position: fixed; top: 12px; left: 12px; width: 290px; max-height: calc(100% - 24px);
-      overflow-y: auto; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line);
+      overflow-y: auto; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line);
       border-radius: 10px; backdrop-filter: blur(6px);
       scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-    h1 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
-    .about { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; min-height: 2.8em; }
-    label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 12px;
+    h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .about { margin: 8px 0 0; font-size: 13px; color: #c4ccda; min-height: 2.8em; }
+    label, .group-name { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 11.5px;
       text-transform: uppercase; letter-spacing: 0.04em; }
     select, button { font: inherit; color: var(--text); background: #1b2130; border: 1px solid var(--line);
       border-radius: 6px; padding: 6px 10px; cursor: pointer; }
@@ -31,87 +31,96 @@
     button:hover, select:hover { border-color: var(--accent); }
     button:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
     .row { display: flex; gap: 6px; align-items: center; }
-    .row button { flex: 1; }
-    input[type=range] { flex: 1; accent-color: var(--accent); }
-    .value { width: 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
-    #bodies { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
-    #bodies li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-    #readout { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
-      font-variant-numeric: tabular-nums; font-size: 13px; }
-    #readout div, .readout-rows div { display: flex; justify-content: space-between; }
-    #readout span:first-child, .readout-rows span:first-child { color: var(--muted); }
-    .readout-rows { margin-top: 6px; font-variant-numeric: tabular-nums; font-size: 13px; }
-    #chart { display: block; width: 100%; height: 110px; background: #121620;
+    .row.buttons button { flex: 1; }
+    input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+    .value { width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .head-buttons { display: flex; gap: 6px; }
+    .icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 30px;
+      padding: 0; flex: none; }
+    .icon svg { width: 14px; height: 14px; fill: currentColor; }
+    .icon svg[hidden] { display: none; }
+    .small { width: 26px; height: 26px; color: var(--muted); font-size: 13px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { padding: 3px 9px; font-size: 13px; border-radius: 14px; }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #controls { margin-top: 10px; }
+    .toggle { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--text);
+      font-size: 13px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+    .toggle input { margin: 0; accent-color: var(--accent); }
+
+    #chaos-row[hidden], #chaos-panel[hidden] { display: none; }
+    #chart { display: block; width: 100%; height: 90px; margin-top: 8px; background: #121620;
       border: 1px solid var(--line); border-radius: 6px; }
+    #readout { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+      font-variant-numeric: tabular-nums; font-size: 12.5px; }
+    .readout-row { display: flex; justify-content: space-between; }
+    .readout-row[hidden] { display: none; }
+    .readout-row span:first-child { color: var(--muted); }
+    #status { font-size: 12.5px; color: #f5a623; }
+    #status:not(:empty) { margin-top: 6px; }
+    details { margin-top: 8px; font-size: 13px; }
+    summary { color: var(--muted); cursor: pointer; font-size: 12.5px; }
+    #bodies { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+    #bodies li { display: flex; align-items: center; gap: 8px; padding: 1px 0; color: var(--muted); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .build { margin-top: 6px; color: #5d6676; font-size: 11px; }
+
     #split-labels { position: fixed; inset: 0; pointer-events: none; }
+    #split-labels[hidden] { display: none; }
     #split-labels span { position: absolute; top: 14px; padding: 3px 10px; font-size: 13px;
       background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
     /* Positions are set from main.js to match the split viewports. */
     #split-labels .left, #split-labels .right { transform: translateX(-50%); }
     #split-labels .divider { position: absolute; top: 0; bottom: 0; width: 1px;
       background: var(--line); }
-    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .icon-button { padding: 2px 9px; font-size: 13px; color: var(--muted); }
     #panel-show { position: fixed; top: 12px; left: 12px; background: var(--panel); }
     #panel[hidden], #panel-show[hidden] { display: none; }
-    #status { margin-top: 8px; min-height: 1.4em; font-size: 13px; }
-    #status.alert { color: #ff6b6b; font-weight: 600; }
-    .hint { margin-top: 10px; color: var(--muted); font-size: 12px; }
-    .build { margin-top: 6px; color: #5d6676; font-size: 11px; }
-    .head-buttons { display: flex; gap: 6px; }
 
-    /* Welcome overlay: shown over the live simulation on a first visit. */
+    /* Welcome overlay: the presets are the page's way in. */
     #intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center;
       justify-content: center; padding: 16px; background: rgba(11, 14, 20, 0.55);
       backdrop-filter: blur(3px); }
     #intro[hidden] { display: none; }
-    .intro-card { width: 100%; max-width: 760px; max-height: 100%; overflow-y: auto;
-      padding: 26px 28px 22px; background: rgba(20, 24, 33, 0.95); border: 1px solid var(--line);
+    .intro-card { position: relative; width: 100%; max-width: 720px; max-height: 100%; overflow-y: auto;
+      padding: 20px 22px; background: rgba(20, 24, 33, 0.95); border: 1px solid var(--line);
       border-radius: 14px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-    .intro-card h2 { margin: 0 0 6px; font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }
-    .intro-card h3 { margin: 22px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.05em; }
-    .intro-card p { margin: 0 0 8px; color: var(--text); line-height: 1.55; }
-    .intro-card .lead { font-size: 15.5px; color: #c4ccda; }
-    .demos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-    .demo { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
-      padding: 12px 13px; background: #1b2130; border-radius: 9px; }
-    .demo strong { font-size: 14px; }
-    .demo span { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
-    kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
-      font: 12px ui-monospace, monospace; color: var(--text); }
-    .tour-ask { display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      flex-wrap: wrap; margin-top: 22px; padding: 14px 16px; background: #1b2130;
-      border: 1px solid var(--line); border-radius: 10px; }
-    .tour-ask p { margin: 0; flex: 1 1 280px; font-size: 14px; }
-    .tour-ask-buttons { display: flex; gap: 8px; }
+    .intro-card h2 { margin: 0; font-size: 22px; font-weight: 650; }
+    .intro-card .lead { margin: 2px 0 0; color: #c4ccda; }
+    #intro-close { position: absolute; top: 14px; right: 14px; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+    .tile { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; text-align: left; border-radius: 8px; }
+    .tile strong { font-size: 13.5px; font-weight: 600; }
+    .tile span { color: var(--muted); font-size: 12px; line-height: 1.3; }
+    .intro-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      margin-top: 14px; }
+    .intro-foot a { color: var(--muted); font-size: 12.5px; }
 
     /* Guided tour */
     #tour[hidden] { display: none; }
     .tour-blocker { position: fixed; inset: 0; z-index: 20; }
     .tour-spot { position: fixed; z-index: 21; pointer-events: none; border: 2px solid var(--accent);
-      border-radius: 9px; box-shadow: 0 0 0 9999px rgba(5, 7, 12, 0.66);
+      border-radius: 9px; box-shadow: 0 0 0 9999px rgba(5, 7, 12, 0.5);
       transition: left 0.25s, top 0.25s, width 0.25s, height 0.25s; }
-    .tour-tip { position: fixed; z-index: 22; width: 300px; max-width: calc(100vw - 24px);
-      padding: 14px 16px 12px; background: #182031; border: 1px solid var(--accent);
+    .tour-tip { position: fixed; z-index: 22; width: 280px; max-width: calc(100vw - 24px);
+      padding: 12px 14px; background: #182031; border: 1px solid var(--accent);
       border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
       transition: left 0.25s, top 0.25s; }
-    .tour-step { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .tour-title { margin: 3px 0 6px; font-size: 16px; }
-    .tour-text { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: #c4ccda; }
+    .tour-title { margin: 0 0 4px; font-size: 15px; }
+    .tour-text { margin: 0 0 10px; font-size: 13.5px; line-height: 1.45; color: #c4ccda; }
     .tour-buttons { display: flex; justify-content: space-between; align-items: center; }
-    .tour-nav { display: flex; gap: 6px; }
-    .tour-skip { background: none; border-color: transparent; color: var(--muted); padding-left: 0; }
-    .intro-foot { margin-top: 14px; }
-    .intro-foot a { color: var(--accent); font-size: 13px; }
-    .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
-      padding: 8px 18px; }
+    .tour-nav { display: flex; gap: 6px; align-items: center; }
+    .tour-step { color: var(--muted); font-size: 12px; }
+    .tour-skip { background: none; border-color: transparent; color: var(--muted); padding: 4px 6px; }
+    kbd { padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+      font: 12px ui-monospace, monospace; color: var(--text); }
+    .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
     .primary:hover { filter: brightness(1.1); }
 
     @media (max-width: 600px) {
       #panel { width: auto; left: 8px; right: 8px; top: auto; bottom: 8px; max-height: 45%; }
-      .intro-card { padding: 20px 18px; }
+      .intro-card { padding: 16px; }
     }
   </style>
   <script type="importmap">
@@ -130,139 +139,104 @@
     <span class="left">Original</span>
     <span class="right" id="split-right">Nudged</span>
   </div>
+
   <div id="intro" hidden>
     <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
-      <h2 id="intro-title">Three-Body Gravity Engine</h2>
-      <p class="lead">A live simulation of Newton's gravity. Watch stars and planets pull on
-        each other, explore famous three-body orbits, and see why the three-body problem is
-        chaotic: move one body by a billionth, and eventually everything turns out differently.</p>
-
-      <h3>Try one</h3>
-      <div class="demos">
-        <button class="demo" data-link="?preset=figure8">
-          <strong>Figure-8</strong>
-          <span>Three equal masses chase each other along one curve, forever.</span>
-        </button>
-        <button class="demo" data-link="?preset=pythagorean&amp;speed=3">
-          <strong>Chaos and escape</strong>
-          <span>Three masses dropped from rest tangle together, until one is thrown out.</span>
-        </button>
-        <button class="demo" data-link="?preset=lagrange&amp;chaos=cloud&amp;nudge=1e-9">
-          <strong>Butterfly effect</strong>
-          <span>30 copies, each nudged by a billionth. Watch them scatter while the original holds.</span>
-        </button>
-        <button class="demo" data-link="?preset=pythagorean&amp;chaos=split&amp;nudge=1e-9&amp;speed=4">
-          <strong>Side by side</strong>
-          <span>The same system twice, one nudged. Identical at first, then not.</span>
-        </button>
-      </div>
-
-      <div class="tour-ask">
-        <p><strong>New here?</strong> Take a quick tour of the page: each control is
-          highlighted in turn with a short explanation. It takes about a minute.</p>
-        <div class="tour-ask-buttons">
-          <button id="intro-close">Skip</button>
-          <button id="tour-start" class="primary">Yes, show me</button>
-        </div>
-      </div>
+      <button id="intro-close" class="icon small" title="Close (Esc)" aria-label="Close">✕</button>
+      <h2 id="intro-title">Three Body</h2>
+      <p class="lead">Gravity, simulated live. Pick an experiment:</p>
+      <div id="intro-presets"></div>
       <div class="intro-foot">
         <a href="https://github.com/Sagnik-Nandi/Three-Body-Gravity-Engine" target="_blank"
-          rel="noopener">Source code and physics notes on GitHub</a>
+          rel="noopener">Source and physics notes</a>
+        <button id="tour-start">Quick tour</button>
       </div>
     </div>
   </div>
-  <button id="panel-show" class="icon-button" title="Show controls (H)" hidden>☰ Controls</button>
+
+  <button id="panel-show" class="icon" title="Show controls (H)" aria-label="Show controls" hidden>☰</button>
   <div id="panel">
     <div class="panel-head">
       <h1>Three Body</h1>
-      <div class="head-buttons" data-tour="head">
-        <button id="intro-open" class="icon-button" title="About, demos and the tour">?</button>
-        <button id="panel-hide" class="icon-button" title="Hide controls (H)">Hide ✕</button>
+      <div class="head-buttons">
+        <button id="intro-open" class="icon small" title="Presets and tour" aria-label="Help">?</button>
+        <button id="panel-hide" class="icon small" title="Hide controls (H)" aria-label="Hide controls">✕</button>
       </div>
     </div>
+
+    <div id="presets" data-tour="presets"></div>
     <p class="about" id="about"></p>
 
-    <div data-tour="preset">
-      <label for="preset">Preset</label>
-      <select id="preset"></select>
+    <div id="controls" class="row">
+      <button id="play" class="icon" title="Pause (Space)" aria-label="Pause">
+        <svg id="icon-pause" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1h4v12H2zM8 1h4v12H8z"/></svg>
+        <svg id="icon-play" viewBox="0 0 14 14" aria-hidden="true" hidden><path d="M3 1l10 6-10 6z"/></svg>
+      </button>
+      <button id="reset" class="icon" title="Restart" aria-label="Restart">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2a5 5 0 1 1-5 5h1.6A3.4 3.4 0 1 0 7 3.6V6L3.4 2.8 7 0z"/></svg>
+      </button>
+      <input id="speed" type="range" min="-1" max="1" step="0.05" value="0" title="Speed" aria-label="Speed">
+      <span class="value" id="speed-value">1.0×</span>
     </div>
 
-    <div class="row" style="margin-top: 10px" data-tour="play">
-      <button id="play">Pause</button>
-      <button id="reset">Reset</button>
-    </div>
-
-    <div data-tour="speed">
-      <label for="speed">Speed</label>
-      <div class="row">
-        <input id="speed" type="range" min="-1" max="1" step="0.05" value="0">
-        <span class="value" id="speed-value">1.0×</span>
-      </div>
-    </div>
-
-    <div data-tour="trail">
-      <label for="trail">Trail length</label>
-      <div class="row">
-        <input id="trail" type="range" min="0" max="5000" step="100" value="1500">
-        <span class="value" id="trail-value">1500</span>
-      </div>
-    </div>
-
-    <div data-tour="camera">
-      <label>Camera</label>
-      <div class="row">
-        <button id="view-angle">Tilted</button>
-        <button id="view-top">Top</button>
-        <button id="view-side">Side</button>
-      </div>
-    </div>
-
-
-    <div data-tour="chaos">
-      <label for="chaos">Chaos comparison</label>
+    <div id="chaos-row">
+      <label for="chaos">Compare with a nudged copy</label>
       <select id="chaos">
         <option value="off">Off</option>
-        <option value="twin">Twin: nudged copy overlaid</option>
-        <option value="split">Split screen: original | nudged</option>
-        <option value="cloud">Cloud: 30 nudged copies</option>
+        <option value="twin">Twin</option>
+        <option value="split">Split screen</option>
+        <option value="cloud">Cloud of 30</option>
       </select>
     </div>
-    <div id="chaos-panel" data-tour="chart" hidden>
-      <label for="nudge">Nudge size</label>
+    <div id="chaos-panel" hidden>
+      <label for="nudge">Nudge</label>
       <div class="row">
         <input id="nudge" type="range" min="-12" max="-1" step="1" value="-9">
         <span class="value" id="nudge-value">1e-9</span>
       </div>
-      <label>Gap between original and copies</label>
-      <canvas id="chart"></canvas>
-      <div class="readout-rows">
-        <div><span>Gap now</span><span id="gap">0</span></div>
-        <div><span>Visibly apart at</span><span id="horizon">not yet</span></div>
-      </div>
+      <canvas id="chart" title="Gap between original and copies, log scale"></canvas>
+      <div class="readout-row" style="margin-top: 4px; font-size: 12.5px"><span>Visibly apart at</span><span id="horizon">not yet</span></div>
     </div>
 
-    <ul id="bodies" data-tour="bodies"></ul>
+    <label class="toggle"><input id="tides" type="checkbox"> Tide arrows</label>
 
-    <div id="readout" data-tour="readout">
-      <div><span>Time</span><span id="time">0</span></div>
-      <div><span>Energy error</span><span id="energy">0</span></div>
+    <div id="readout">
+      <div class="readout-row"><span>Time</span><span id="time">0</span></div>
+      <div class="readout-row" id="count-row" hidden><span>Rocks</span><span id="count">0</span></div>
+      <div class="readout-row" id="heat-row" hidden><span title="Collision energy turned into heat">Heat</span><span id="heat">0</span></div>
+      <div class="readout-row"><span title="How far the simulation has drifted from perfect energy conservation">Energy error</span><span id="energy">0</span></div>
     </div>
     <div id="status"></div>
-    <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan · space to pause · H to hide controls</div>
+
+    <details>
+      <summary>More</summary>
+      <label for="trail">Trail</label>
+      <div class="row">
+        <input id="trail" type="range" min="0" max="5000" step="100" value="1500">
+        <span class="value" id="trail-value">1500</span>
+      </div>
+      <label>View</label>
+      <div class="row buttons">
+        <button id="view-angle">Tilted</button>
+        <button id="view-top">Top</button>
+        <button id="view-side">Side</button>
+      </div>
+      <ul id="bodies"></ul>
+    </details>
     <div class="build">version <span id="build-id">local</span></div>
   </div>
 
-  <!-- Guided tour: dims the page and highlights one control at a time. -->
+  <!-- Guided tour: dims the page and highlights one part at a time. -->
   <div id="tour" hidden>
     <div class="tour-blocker"></div>
     <div class="tour-spot"></div>
     <div class="tour-tip" role="dialog" aria-live="polite">
-      <div class="tour-step"></div>
       <h4 class="tour-title"></h4>
       <p class="tour-text"></p>
       <div class="tour-buttons">
-        <button class="tour-skip">Skip tour</button>
+        <button class="tour-skip">Skip</button>
         <span class="tour-nav">
+          <span class="tour-step"></span>
           <button class="tour-back">Back</button>
           <button class="tour-next primary">Next</button>
         </span>

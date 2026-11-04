@@ -17,8 +17,14 @@ const PLAYBACK_SECONDS = 15; // at 1x speed a preset's suggested run lasts this 
 const TRAIL_POINTS_PER_RUN = 3600;
 const MAX_POINTS_PER_FRAME = 400; // keeps a frame cheap at extreme speeds
 const SINGULAR_RATIO = 1e-8; // same point-mass collision cutoff as System.run
-const MARKER_SIZE = 0.032; // collision marker radius, as a fraction of the scene size
 const VISIBLE_GAP = 0.01; // a gap of 1% of the system's size counts as visible
+const FRAME_BUDGET_MS = 12; // particle physics gets this long per frame; slower machines run in slow motion
+const SLOW_READOUT_SECONDS = 0.25; // particle energy costs N^2, so it updates this often
+const FLASH_SECONDS = 1.2; // how long a merge's flash lasts
+const FLASH_SIZE = 0.09; // its final radius, as a fraction of the scene size
+const ROCK_COLORS = ["#c8ccd4", "#8d94a3"]; // moon particles: alternating wedges, so shearing shows
+const ROCK_CORE = "#e8a04d"; // inner half of the moon
+const ROCK_WEDGES = 8;
 
 // The physics uses x-y as the orbital plane (z up); three.js has y up.
 // Map physics (x, y, z) -> scene (x, z, -y) so orbits lie on the floor grid.
@@ -143,16 +149,20 @@ class Trail {
 // ---- runs: the original simulation and its nudged copies ----------------------
 
 /**
- * One simulation plus everything that draws it. style:
+ * One simulation plus everything that draws it. Bodies are looked up by the id
+ * they started with, since merging renumbers them. style:
  *   "solid" - lit spheres and full trails (the original, and the copy in split screen)
  *   "ghost" - see-through wireframe spheres, ring dots, dashed trails (twin overlay)
  *   "cloud" - just a small ring dot and a faint short trail (one of many copies)
+ * A run made of particles draws its big bodies this way, and the rocks in `rocks`.
  */
 function makeRun(sim, style) {
   const group = new THREE.Group();
   world.add(group);
-  const run = { sim, style, group, minScale: SINGULAR_RATIO * sim.timescale(), meshes: [], dots: [], trails: [] };
-  for (let i = 0; i < sim.n; i++) {
+  const bodies = sim.nBig ?? sim.n;
+  const run = { sim, style, group, bodies, meshes: [], dots: [], trails: [],
+    minScale: sim.nBig === undefined ? SINGULAR_RATIO * sim.timescale() : 0 };
+  for (let i = 0; i < bodies; i++) {
     const color = new THREE.Color(COLORS[i % COLORS.length]);
     if (style !== "cloud") {
       const material = style === "solid"
@@ -173,21 +183,80 @@ function makeRun(sim, style) {
     group.add(trail.line);
     run.trails.push(trail);
   }
+  if (sim.nBig !== undefined) makeRocks(run);
   recordTrails(run);
   return run;
 }
 
-function recordTrails(run) {
-  const tmp = new THREE.Vector3();
-  run.trails.forEach((t, i) => t.push(toScene(run.sim, i, tmp)));
+/** The particles of a moon, as one instanced mesh, in true size. Coloured by
+ *  where each one started: a core and alternating wedges, so stretching and
+ *  shearing show up as the pattern distorts. */
+function makeRocks(run) {
+  const { sim } = run;
+  const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1),
+    new THREE.MeshStandardMaterial({ roughness: 0.85 }), sim.startCount);
+  rocks.frustumCulled = false;
+  const [cx, cy, cz] = sim.particleCentre();
+  run.moonSpread = sim.spread();
+  run.moonRadius = run.moonSpread / Math.sqrt(0.6); // rms radius of a uniform ball
+  run.rockColors = [];
+  for (let i = sim.nBig; i < sim.n; i++) {
+    const [x, y, z] = [sim.pos[3 * i] - cx, sim.pos[3 * i + 1] - cy, sim.pos[3 * i + 2] - cz];
+    const wedge = Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * ROCK_WEDGES) % 2;
+    const core = Math.hypot(x, y, z) < 0.5 * run.moonRadius;
+    run.rockColors.push(new THREE.Color(core ? ROCK_CORE : ROCK_COLORS[wedge]));
+    rocks.setColorAt(i - sim.nBig, run.rockColors.at(-1));
+  }
+  rocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  rocks.instanceMatrix.array.fill(0);
+  run.rocks = rocks;
+  run.rockCount = sim.particleCount;
+  run.group.add(rocks);
 }
 
-/** Largest distance between matching bodies of two simulations. */
-function gapBetween(a, b) {
+/** Copy the particles into the instanced mesh. A particle absorbed by a planet
+ *  renumbers the others, so colours are redone when the count changes. */
+function updateRocks(run) {
+  const { sim, rocks } = run;
+  const m = rocks.instanceMatrix.array;
+  const count = sim.particleCount;
+  for (let k = 0; k < count; k++) {
+    const i = sim.nBig + k;
+    const r = sim.radii[i];
+    const o = 16 * k;
+    m[o] = m[o + 5] = m[o + 10] = r;
+    m[o + 12] = sim.pos[3 * i];
+    m[o + 13] = sim.pos[3 * i + 2];
+    m[o + 14] = -sim.pos[3 * i + 1];
+    m[o + 15] = 1;
+  }
+  rocks.count = count;
+  rocks.instanceMatrix.needsUpdate = true;
+  if (count !== run.rockCount) {
+    run.rockCount = count;
+    for (let k = 0; k < count; k++) {
+      rocks.setColorAt(k, run.rockColors[sim.ids[sim.nBig + k] - sim.nBig]);
+    }
+    rocks.instanceColor.needsUpdate = true;
+  }
+}
+
+function recordTrails(run) {
+  const tmp = new THREE.Vector3();
+  run.trails.forEach((t, id) => {
+    const i = run.sim.indexOfId(id);
+    if (i >= 0) t.push(toScene(run.sim, i, tmp));
+  });
+}
+
+/** Largest distance between matching bodies of two simulations (a body
+ *  absorbed in a merge counts as being where its mass now is). */
+function gapBetween(a, b, bodies) {
   let worst = 0;
-  for (let i = 0; i < a.n; i++) {
-    worst = Math.max(worst, Math.hypot(a.pos[3 * i] - b.pos[3 * i],
-      a.pos[3 * i + 1] - b.pos[3 * i + 1], a.pos[3 * i + 2] - b.pos[3 * i + 2]));
+  for (let id = 0; id < bodies; id++) {
+    const [i, j] = [a.holderOf(id), b.holderOf(id)];
+    worst = Math.max(worst, Math.hypot(a.pos[3 * i] - b.pos[3 * j],
+      a.pos[3 * i + 1] - b.pos[3 * j + 1], a.pos[3 * i + 2] - b.pos[3 * j + 2]));
   }
   return worst;
 }
@@ -202,16 +271,105 @@ function seededRandom(seed) {
   };
 }
 
+// ---- tide arrows ------------------------------------------------------------
+
+const ARROWS_PER_BODY = 8;
+const ARROW_LENGTH = 0.45; // at the starting strength, as a fraction of the ring's radius
+const ARROW_LENGTH_MAX = 1.5;
+const ARROW_MIN_RATIO = 0.3; // a body with a weaker tide than this (cube root of the ratio) gets no arrows
+const STRETCH = new THREE.Color("#ff9d4d");
+const SQUEEZE = new THREE.Color("#6db3ff");
+
+/**
+ * Arrows on a ring around a body, each showing how the tide pushes that spot
+ * relative to the body's centre: out along the line to the source (orange), in
+ * across it (blue). The direction is exact. The length is compressed (cube root
+ * of the strength, so it goes with 1/distance), or moons would need arrows 300x
+ * longer at closest approach.
+ */
+function makeTideArrows() {
+  const verts = Math.max(main.bodies, 1) * ARROWS_PER_BODY * 6; // a shaft and two head strokes, 2 ends each
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+  tideLines = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true }));
+  tideLines.frustumCulled = false;
+  main.group.add(tideLines);
+  // The scale is set by the strongest tide at the start.
+  tideReference = Math.max(...tideSites().map((s) => tideSize(s.tensor)), 1e-300);
+}
+
+const tideSize = (T) => Math.sqrt(T.reduce((sum, v) => sum + v * v, 0));
+
+/** Where to draw arrows: each body, or for a particle moon its centre, feeling the big bodies. */
+function tideSites() {
+  const sim = main.sim;
+  if (main.rocks) {
+    // Once torn apart, the moon is no longer one body for a tide to act on.
+    if (sim.particleCount === 0 || sim.spread() > 1.5 * main.moonSpread) return [];
+    const c = sim.particleCentre();
+    return [{ centre: c, tensor: sim.tidalTensor(c[0], c[1], c[2], sim.nBig), radius: main.moonRadius }];
+  }
+  const sites = [];
+  for (let i = 0; i < sim.n; i++) {
+    sites.push({ centre: sim.position(i), tensor: sim.tidalTensorOn(i), radius: sim.radii[i] });
+  }
+  return sites;
+}
+
+function updateTideArrows() {
+  tideLines.visible = ui.tides.checked;
+  if (!ui.tides.checked) return;
+  const position = tideLines.geometry.attributes.position;
+  const color = tideLines.geometry.attributes.color;
+  let v = 0;
+  const put = (x, y, z, c) => {
+    position.setXYZ(v, x, z, -y); // physics to scene
+    color.setXYZ(v, c.r, c.g, c.b);
+    v++;
+  };
+  for (const { centre, tensor: T, radius } of tideSites()) {
+    const ratio = Math.cbrt(tideSize(T) / tideReference);
+    if (ratio < ARROW_MIN_RATIO) continue;
+    const [cx, cy, cz] = centre;
+    // Far enough out to see, however small the body or wide the view.
+    const onScreen = 0.035 * camera.position.distanceTo(new THREE.Vector3(cx, cz, -cy));
+    const ring = Math.max(radius * 1.3, onScreen);
+    const length = ring * Math.min(ARROW_LENGTH * ratio, ARROW_LENGTH_MAX);
+    for (let a = 0; a < ARROWS_PER_BODY; a++) {
+      const angle = (2 * Math.PI * (a + 0.5)) / ARROWS_PER_BODY;
+      const [ux, uy] = [Math.cos(angle), Math.sin(angle)];
+      const [ax, ay, az] = [T[0] * ux + T[1] * uy, T[3] * ux + T[4] * uy, T[6] * ux + T[7] * uy];
+      const size = Math.hypot(ax, ay, az) || 1;
+      const [dx, dy, dz] = [(ax / size) * length, (ay / size) * length, (az / size) * length];
+      const [px, py, pz] = [cx + ux * ring, cy + uy * ring, cz];
+      const [tx, ty, tz] = [px + dx, py + dy, pz + dz];
+      const c = ax * ux + ay * uy > 0 ? STRETCH : SQUEEZE;
+      put(px, py, pz, c);
+      put(tx, ty, tz, c);
+      for (const side of [-1, 1]) {
+        put(tx, ty, tz, c);
+        put(tx - 0.3 * dx - side * 0.2 * dy, ty - 0.3 * dy + side * 0.2 * dx, tz - 0.3 * dz, c);
+      }
+    }
+  }
+  tideLines.geometry.setDrawRange(0, v);
+  position.needsUpdate = true;
+  color.needsUpdate = true;
+}
+
 // ---- state ----------------------------------------------------------------
 
 const ui = Object.fromEntries(
-  ["preset", "about", "play", "reset", "speed", "speed-value", "trail", "trail-value",
-    "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
-    "chaos", "nudge", "nudge-value", "chaos-panel", "chart", "gap", "horizon", "split-labels",
-    "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start"]
+  ["presets", "intro-presets", "about", "play", "icon-play", "icon-pause", "reset", "speed", "speed-value",
+    "trail", "trail-value", "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
+    "chaos", "chaos-row", "nudge", "nudge-value", "chaos-panel", "chart", "horizon", "split-labels",
+    "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start",
+    "tides", "heat", "heat-row", "count", "count-row"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
+let presetName; // key of SCENARIOS
 let preset; // entry of SCENARIOS
 let main; // the original run
 let copies = []; // nudged runs (twin/split: one; cloud: many)
@@ -220,24 +378,33 @@ let nudge = 1e-9;
 let e0; // starting energy
 let extent; // size of the starting configuration, sets camera and drawn sizes
 let playing = true;
-let impactMarker = null;
 let gapHistory = []; // [time, gap] for the chart
 let horizon = null; // time the copies first visibly separated
+let tideLines = null;
+let tideReference = 1;
+let flashes = []; // merges being shown: {mesh, age}
+let mergesShown = 0;
+let bodyRowsFor = null; // what the body list currently describes
+let lastSlowReadout = -Infinity;
 
 // ---- building a preset ----------------------------------------------------
 
 function load(name) {
+  presetName = name;
   preset = SCENARIOS[name];
   world.clear();
-  impactMarker = null;
   gapHistory = [];
   horizon = null;
+  flashes = [];
+  mergesShown = 0;
+  bodyRowsFor = null;
+  lastSlowReadout = -Infinity;
 
-  const sim = preset.make();
-  e0 = sim.energy();
+  const sim = makeSim();
+  e0 = sim.energyBudget();
   const tmp = new THREE.Vector3();
-  extent = 0;
-  for (let i = 0; i < sim.n; i++) extent = Math.max(extent, toScene(sim, i, tmp).length());
+  extent = preset.extent ?? 0;
+  if (!extent) for (let i = 0; i < sim.n; i++) extent = Math.max(extent, toScene(sim, i, tmp).length());
 
   // Faint floor grid in the orbital plane, for a sense of depth.
   world.add(new THREE.GridHelper(niceSize(extent * 3), 20, 0x2a3140, 0x1a1f2b));
@@ -246,7 +413,7 @@ function load(name) {
   copies = [];
   if (mode === "twin" || mode === "split") {
     // Same nudge as visualize.py --nudge: body 1 moved by `nudge` in x.
-    const twin = preset.make();
+    const twin = makeSim();
     twin.pos[0] += nudge;
     copies.push(makeRun(twin, mode === "split" ? "solid" : "ghost"));
   } else if (mode === "cloud") {
@@ -254,7 +421,7 @@ function load(name) {
     // the orbital plane.
     const random = seededRandom(1);
     for (let c = 0; c < CLOUD_SIZE; c++) {
-      const copy = preset.make();
+      const copy = makeSim();
       for (let i = 0; i < copy.n; i++) {
         const angle = 2 * Math.PI * random();
         copy.pos[3 * i] += nudge * Math.cos(angle);
@@ -263,20 +430,30 @@ function load(name) {
       copies.push(makeRun(copy, "cloud"));
     }
   }
-  applySizes();
+  makeTideArrows();
   recordGap();
 
   ui.about.textContent = preset.about;
-  ui.bodies.innerHTML = Array.from(sim.masses, (m, i) =>
-    `<li><span class="dot" style="background:${COLORS[i % COLORS.length]}"></span>` +
-    `body ${i + 1} &nbsp;<span style="color:var(--muted)">mass ${formatNumber(m)}</span></li>`,
-  ).join("");
+  for (const chip of ui.presets.querySelectorAll(".chip")) {
+    chip.classList.toggle("active", chip.dataset.preset === name);
+  }
+  ui.chaos.value = mode;
+  ui["chaos-row"].hidden = Boolean(preset.particles);
   ui["chaos-panel"].hidden = mode === "off";
   ui["split-labels"].hidden = mode !== "split";
   ui["split-right"].textContent = `Nudged by ${formatNudge(nudge)}`;
-  setStatus("");
+  ui["count-row"].hidden = !preset.particles;
+  ui["heat-row"].hidden = true;
+  ui.status.textContent = "";
   setView("angle");
   updateScene();
+}
+
+/** A preset's simulation, with collisions merging bodies instead of ending the run. */
+function makeSim() {
+  const sim = preset.make();
+  sim.merge = true;
+  return sim;
 }
 
 /** Round a length up to 1, 2 or 5 times a power of ten, for a tidy grid. */
@@ -293,17 +470,6 @@ function formatNudge(x) {
   return `1e${Math.round(Math.log10(x))}`;
 }
 
-/** Bodies are drawn at their true radius, so touching on screen means
- *  touching in the physics. Tiny ones (a Trojan asteroid, a moon, point
- *  masses) stay visible through their screen-size dot. */
-function applySizes() {
-  for (const run of [main, ...copies]) {
-    run.meshes.forEach((mesh, i) => {
-      mesh.scale.setScalar(Math.max(run.sim.radii[i], 1e-9)); // radius 0: only the dot shows
-    });
-  }
-}
-
 // ---- camera ---------------------------------------------------------------
 
 function setView(kind) {
@@ -318,69 +484,119 @@ function setView(kind) {
 
 /** Advance every run by the sim time this frame should cover, recording a
  *  trail point every preset.t / TRAIL_POINTS_PER_RUN of simulation time.
- *  The copies follow the original's clock; a copy that collides freezes. */
+ *  The copies follow the original's clock. */
 function advance(realSeconds) {
   const sim = main.sim;
-  const tEnd = sim.time + realSeconds * (preset.t / PLAYBACK_SECONDS) * speedMultiplier();
-  const spacing = Math.max(preset.t / TRAIL_POINTS_PER_RUN, (tEnd - sim.time) / MAX_POINTS_PER_FRAME);
+  const simDt = realSeconds * (preset.t / PLAYBACK_SECONDS) * speedMultiplier();
+  if (preset.particles) {
+    sim.advanceBy(simDt, FRAME_BUDGET_MS);
+    recordTrails(main);
+    return;
+  }
+  const tEnd = sim.time + simDt;
+  const spacing = Math.max(preset.t / TRAIL_POINTS_PER_RUN, simDt / MAX_POINTS_PER_FRAME);
   while (sim.time < tEnd) {
     const target = Math.min(sim.time + spacing, tEnd);
     for (const run of copies) {
-      if (!run.sim.collision) {
-        run.sim.advanceTo(target, preset.eta, run.minScale);
-        recordTrails(run);
-      }
+      run.sim.advanceTo(target, preset.eta, run.minScale);
+      recordTrails(run);
     }
-    const collided = sim.advanceTo(target, preset.eta, main.minScale);
+    sim.advanceTo(target, preset.eta, main.minScale);
     recordTrails(main);
-    if (collided) {
-      onCollision();
-      break;
-    }
   }
   recordGap();
-}
-
-function onCollision() {
-  playing = false;
-  ui.play.textContent = "Play";
-  const sim = main.sim;
-  const [i, j] = sim.collision;
-  setStatus(`Collision: body ${i + 1} hit body ${j + 1} at t = ${sim.time.toFixed(3)}`, true);
-  const a = toScene(sim, i, new THREE.Vector3());
-  const b = toScene(sim, j, new THREE.Vector3());
-  impactMarker = new THREE.Mesh(
-    new THREE.SphereGeometry(MARKER_SIZE * extent, 24, 12),
-    new THREE.MeshBasicMaterial({ color: 0xff3b3b, wireframe: true }),
-  );
-  impactMarker.position.copy(a.add(b).multiplyScalar(0.5));
-  main.group.add(impactMarker);
 }
 
 /** Note how far the copies have drifted from the original (worst copy). */
 function recordGap() {
   if (!copies.length) return;
-  const gap = Math.max(...copies.map((run) => gapBetween(main.sim, run.sim)));
+  const gap = Math.max(...copies.map((run) => gapBetween(main.sim, run.sim, main.bodies)));
   gapHistory.push([main.sim.time, gap]);
   if (gapHistory.length > 4000) gapHistory = gapHistory.filter((_, k) => k % 2 === 0);
   if (horizon === null && gap > VISIBLE_GAP * extent) horizon = main.sim.time;
 }
 
+/** A flash where each new merge happened, and a line saying what merged. */
+function showMerges(dt) {
+  const { merges } = main.sim;
+  for (; mergesShown < merges.length; mergesShown++) {
+    const { position: [x, y, z], survivor, absorbed } = merges[mergesShown];
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffb35c, transparent: true, depthWrite: false }));
+    mesh.position.set(x, z, -y);
+    main.group.add(mesh);
+    flashes.push({ mesh, age: 0 });
+    ui.status.textContent = `Body ${absorbed + 1} merged into body ${survivor + 1}`;
+  }
+  flashes = flashes.filter((flash) => {
+    flash.age += dt;
+    const k = flash.age / FLASH_SECONDS;
+    flash.mesh.scale.setScalar(Math.max(k * FLASH_SIZE * extent, 1e-9));
+    flash.mesh.material.opacity = Math.max(1 - k, 0) * 0.7;
+    if (k < 1) return true;
+    main.group.remove(flash.mesh);
+    return false;
+  });
+}
+
+/** The list of bodies and masses; rewritten only when it changes. */
+function updateBodyList() {
+  const sim = main.sim;
+  const key = `${sim.n}`;
+  if (key === bodyRowsFor) return;
+  bodyRowsFor = key;
+  const rows = [];
+  for (let id = 0; id < main.bodies; id++) {
+    const i = sim.indexOfId(id);
+    const dot = `<span class="dot" style="background:${COLORS[id % COLORS.length]};${i < 0 ? "opacity:0.3" : ""}"></span>`;
+    rows.push(`<li>${dot}body ${id + 1}, ${i < 0 ? "merged" : `mass ${formatNumber(sim.masses[i])}`}</li>`);
+  }
+  if (main.rocks) {
+    let mass = 0;
+    for (let i = sim.nBig; i < sim.n; i++) mass += sim.masses[i];
+    rows.push(`<li><span class="dot" style="background:${ROCK_CORE}"></span>${sim.particleCount} rocks, mass ${formatNumber(mass)}</li>`);
+  }
+  ui.bodies.innerHTML = rows.join("");
+}
+
 /** Copy the simulation state into the meshes and trail lines. */
-function updateScene() {
+function updateScene(dt = 0) {
   const shown = Number(ui.trail.value);
   const dash = extent * 0.02;
   for (const run of [main, ...copies]) {
-    run.meshes.forEach((mesh, i) => toScene(run.sim, i, mesh.position));
-    run.dots.forEach((dot, i) => toScene(run.sim, i, dot.position));
+    run.meshes.forEach((mesh, id) => {
+      const i = run.sim.indexOfId(id);
+      mesh.visible = i >= 0;
+      if (i < 0) return;
+      toScene(run.sim, i, mesh.position);
+      // True radius, so touching on screen means touching in the physics.
+      // Tiny bodies stay visible through their screen-size dot.
+      mesh.scale.setScalar(Math.max(run.sim.radii[i], 1e-9));
+    });
+    run.dots.forEach((dot, id) => {
+      const i = run.sim.indexOfId(id);
+      dot.visible = i >= 0;
+      if (i >= 0) toScene(run.sim, i, dot.position);
+    });
     run.trails.forEach((t) => t.update(shown, dash));
+    if (run.rocks) updateRocks(run);
   }
-  if (impactMarker) impactMarker.rotation.y += 0.02;
+  showMerges(dt);
+  updateTideArrows();
+  updateBodyList();
 
-  ui.time.textContent = main.sim.time.toFixed(2);
-  ui.energy.textContent = Math.abs((main.sim.energy() - e0) / e0).toExponential(1);
+  const sim = main.sim;
+  ui.time.textContent = sim.time.toFixed(2);
+  // A particle system's energy costs N^2, so it needn't update every frame.
+  const now = performance.now() / 1000;
+  if (!preset.particles || now - lastSlowReadout >= SLOW_READOUT_SECONDS) {
+    lastSlowReadout = now;
+    ui.energy.textContent = Math.abs((sim.energyBudget() - e0) / e0).toExponential(1);
+    ui["heat-row"].hidden = sim.heat <= 0;
+    ui.heat.textContent = formatNumber(sim.heat);
+  }
+  if (preset.particles) ui.count.textContent = sim.particleCount;
   if (copies.length) {
-    ui.gap.textContent = gapHistory.at(-1)[1].toExponential(1);
     ui.horizon.textContent = horizon === null ? "not yet" : `t = ${horizon.toFixed(2)}`;
     drawChart();
   }
@@ -428,8 +644,8 @@ function drawChart() {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1); // don't jump ahead after a stalled tab
-  if (playing && !main.sim.collision) advance(dt);
-  updateScene();
+  if (playing) advance(dt);
+  updateScene(dt);
   controls.update();
   render();
 });
@@ -486,43 +702,96 @@ function speedMultiplier() {
   return 10 ** Number(ui.speed.value);
 }
 
-function setStatus(text, alert = false) {
-  ui.status.textContent = text;
-  ui.status.classList.toggle("alert", alert);
+function setSpeed(multiplier) {
+  ui.speed.value = Math.log10(multiplier);
+  ui["speed-value"].textContent = `${speedMultiplier().toFixed(speedMultiplier() < 1 ? 2 : 1)}×`;
 }
 
-function togglePlay() {
-  if (main.sim.collision) return;
-  playing = !playing;
-  ui.play.textContent = playing ? "Pause" : "Play";
+function setPlaying(value) {
+  playing = value;
+  ui["icon-pause"].hidden = !playing;
+  ui["icon-play"].hidden = playing;
+  const label = playing ? "Pause" : "Play";
+  ui.play.title = `${label} (Space)`;
+  ui.play.setAttribute("aria-label", label);
 }
 
 /** Keep the page address in step with the settings, so it can be shared. */
 function updateUrl() {
-  const p = new URLSearchParams({ preset: ui.preset.value, speed: +speedMultiplier().toFixed(2) });
-  if (mode !== "off") {
-    p.set("chaos", mode);
-    p.set("nudge", formatNudge(nudge));
-  }
+  const p = new URLSearchParams({ preset: presetName, speed: +speedMultiplier().toFixed(2) });
+  if (mode !== "off" || preset.chaos) p.set("chaos", mode);
+  if (mode !== "off") p.set("nudge", formatNudge(nudge));
+  if (ui.tides.checked !== Boolean(preset.tides)) p.set("tides", ui.tides.checked ? "1" : "0");
   history.replaceState(null, "", `?${p}`);
 }
 
+/** Start the current preset over, keeping the current settings. */
 function restart() {
-  playing = true;
-  ui.play.textContent = "Pause";
-  load(ui.preset.value);
+  setPlaying(true);
+  load(presetName);
   updateUrl();
 }
 
-for (const name of Object.keys(SCENARIOS)) ui.preset.add(new Option(name, name));
-ui.preset.addEventListener("change", restart);
-ui.play.addEventListener("click", togglePlay);
-ui.reset.addEventListener("click", restart);
-ui.speed.addEventListener("input", () => {
-  ui["speed-value"].textContent = `${speedMultiplier().toFixed(speedMultiplier() < 1 ? 2 : 1)}×`;
+/** Switch to a preset, with the settings it's meant to be seen with. */
+function selectPreset(name) {
+  const next = SCENARIOS[name];
+  mode = next.chaos ?? "off";
+  setSpeed(next.speed ?? 1);
+  ui.tides.checked = Boolean(next.tides);
+  setPlaying(true);
+  load(name);
+  updateUrl();
+}
+
+/** The preset menus, grouped in the order of SCENARIOS. `button` makes one entry. */
+function buildMenu(menu, listClass, button) {
+  const groups = new Set(Object.values(SCENARIOS).map((p) => p.group));
+  for (const group of groups) {
+    const block = document.createElement("div");
+    block.dataset.group = group;
+    const heading = document.createElement("div");
+    heading.className = "group-name";
+    heading.textContent = group;
+    const list = document.createElement("div");
+    list.className = listClass;
+    for (const [name, p] of Object.entries(SCENARIOS)) {
+      if (p.group === group) list.append(button(name, p));
+    }
+    block.append(heading, list);
+    menu.append(block);
+  }
+}
+
+buildMenu(ui.presets, "chips", (name, p) => {
+  const chip = document.createElement("button");
+  chip.className = "chip";
+  chip.dataset.preset = name;
+  chip.title = p.about;
+  chip.textContent = p.label;
+  chip.addEventListener("click", () => selectPreset(name));
+  return chip;
 });
+buildMenu(ui["intro-presets"], "tiles", (name, p) => {
+  const tile = document.createElement("button");
+  tile.className = "tile";
+  const strong = document.createElement("strong");
+  strong.textContent = p.label;
+  const span = document.createElement("span");
+  span.textContent = p.about;
+  tile.append(strong, span);
+  tile.addEventListener("click", () => {
+    setIntroVisible(false);
+    selectPreset(name);
+  });
+  return tile;
+});
+
+ui.play.addEventListener("click", () => setPlaying(!playing));
+ui.reset.addEventListener("click", restart);
+ui.speed.addEventListener("input", () => setSpeed(speedMultiplier()));
 ui.speed.addEventListener("change", updateUrl);
 ui.trail.addEventListener("input", () => { ui["trail-value"].textContent = ui.trail.value; });
+ui.tides.addEventListener("change", updateUrl);
 ui["view-angle"].addEventListener("click", () => setView("angle"));
 ui["view-top"].addEventListener("click", () => setView("top"));
 ui["view-side"].addEventListener("click", () => setView("side"));
@@ -543,40 +812,23 @@ ui["panel-hide"].addEventListener("click", () => setPanelVisible(false));
 
 // ---- welcome overlay and tour ---------------------------------------------------
 
-const part = (name) => () => document.querySelector(`[data-tour="${name}"]`);
+const presetGroup = (group) => () => ui.presets.querySelector(`[data-group="${group}"]`);
 const TOUR_STEPS = [
+  { target: () => ui.presets, title: "Start here",
+    text: "Each button is a different experiment." },
+  { target: presetGroup("Orbits"), enter: () => selectPreset("figure8"), title: "Orbits",
+    text: "Patterns that repeat. Here, three masses share one path." },
+  { target: presetGroup("Chaos"), enter: () => selectPreset("butterfly"), title: "Chaos",
+    text: "These 30 copies differ by a billionth. Watch them scatter." },
+  { target: presetGroup("Impacts & tides"), enter: () => selectPreset("moon-torn"), title: "Impacts & tides",
+    text: "Bodies collide and merge. This moon is 1,000 rocks, and tides are tearing it apart." },
   { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },
-    title: "The simulation",
-    text: "Bodies pulling on each other with Newton's gravity, computed live. " +
-      "<b>Drag</b> to rotate, <b>scroll</b> to zoom, <b>right-drag</b> to pan." },
-  { target: part("preset"), title: "Presets",
-    text: "Pick a starting setup: famous orbits (figure-8, Lagrange triangle, Euler line), " +
-      "a Trojan asteroid, a moon around a planet, or the chaotic Pythagorean problem." },
-  { target: part("play"), title: "Play and reset",
-    text: "Pause and resume (or press <kbd>Space</kbd>). Reset starts the preset over." },
-  { target: part("speed"), title: "Speed", text: "Run the simulation from 0.1× to 10× speed." },
-  { target: part("trail"), title: "Trails",
-    text: "How much of each body's path stays visible behind it. Older parts fade out." },
-  { target: part("camera"), title: "Camera views",
-    text: "Jump to a tilted, top-down or side view. The orbits lie on the floor grid." },
-  { target: part("chaos"), title: "Chaos comparison",
-    text: "Run copies of the system nudged by as little as a billionth: a ghost twin, a split " +
-      "screen, or a cloud of 30. In chaotic systems they soon go completely different ways." },
-  { target: part("chart"), title: "How fast they drift apart",
-    text: "The gap between the original and its copies, on a log scale. A straight rising " +
-      "line means exponential growth: the signature of chaos." },
-  { target: part("bodies"), title: "The bodies", text: "Each body's colour and mass." },
-  { target: part("readout"), title: "Readout",
-    text: "Simulation time, and the energy error. Real energy never changes, so this shows " +
-      "how accurate the simulation is: smaller is better." },
-  { target: part("head"), title: "Help and full screen",
-    text: "<b>?</b> brings back the welcome page and this tour. <b>Hide</b> (or <kbd>H</kbd>) " +
-      "hides the controls so the simulation fills the screen. Enjoy!" },
+    title: "Look around",
+    text: "Drag to rotate, scroll to zoom. <kbd>Space</kbd> pauses, <kbd>H</kbd> hides the panel." },
 ];
 
 function setIntroVisible(visible) {
   ui.intro.hidden = !visible;
-  if (visible) ui["tour-start"].focus({ preventScroll: true });
 }
 
 ui["intro-open"].addEventListener("click", () => setIntroVisible(true));
@@ -589,12 +841,6 @@ ui["intro-close"].addEventListener("click", () => setIntroVisible(false));
 ui.intro.addEventListener("click", (e) => {
   if (e.target === ui.intro) setIntroVisible(false); // click outside the card
 });
-for (const demo of ui.intro.querySelectorAll(".demo")) {
-  demo.addEventListener("click", () => {
-    setIntroVisible(false);
-    location.search = demo.dataset.link;
-  });
-}
 ui["panel-show"].addEventListener("click", () => setPanelVisible(true));
 window.addEventListener("keydown", (e) => {
   if (!ui.intro.hidden) {
@@ -604,7 +850,7 @@ window.addEventListener("keydown", (e) => {
   if (e.target.tagName === "SELECT") return;
   if (e.code === "Space") {
     e.preventDefault();
-    togglePlay();
+    setPlaying(!playing);
   } else if (e.code === "KeyH") {
     setPanelVisible(document.getElementById("panel").hidden);
   }
@@ -612,34 +858,34 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("resize", () => renderer.setSize(window.innerWidth, window.innerHeight));
 
 // URL options: ?preset=pythagorean&speed=4 picks the preset and playback
-// speed; &chaos=twin|split|cloud&nudge=1e-9 turns on a chaos comparison;
-// &start=10 fast-forwards to simulation time 10 (replaying the same 60 fps
-// steps as live play, so the view is exactly what you'd have seen);
-// &paused=1 starts paused; &panel=0 starts with the controls hidden;
-// &intro=1 opens the welcome overlay; &tour=1 starts the tour.
+// speed; &chaos=off|twin|split|cloud&nudge=1e-9 sets the chaos comparison;
+// &tides=0|1 the tide arrows; &start=10 fast-forwards to simulation time 10
+// (replaying the same 60 fps steps as live play, so the view is exactly what
+// you'd have seen); &paused=1 starts paused; &panel=0 starts with the controls
+// hidden; &intro=1 opens the welcome overlay; &tour=1 starts the tour.
 const params = new URLSearchParams(location.search);
 const requested = params.get("preset");
-ui.preset.value = requested in SCENARIOS ? requested : "figure8";
-if (params.has("speed")) {
-  ui.speed.value = Math.log10(Number(params.get("speed")) || 1);
-  ui.speed.dispatchEvent(new Event("input"));
-}
-if (["twin", "split", "cloud"].includes(params.get("chaos"))) mode = ui.chaos.value = params.get("chaos");
+const startName = requested in SCENARIOS ? requested : "figure8";
+const startPreset = SCENARIOS[startName];
+setSpeed(Number(params.get("speed")) || startPreset.speed || 1);
+ui.tides.checked = params.has("tides") ? params.get("tides") === "1" : Boolean(startPreset.tides);
+mode = startPreset.chaos ?? "off";
+if (["off", "twin", "split", "cloud"].includes(params.get("chaos"))) mode = params.get("chaos");
+if (startPreset.particles) mode = "off";
 if (Number(params.get("nudge")) > 0) {
   nudge = 10 ** Math.round(Math.log10(Number(params.get("nudge"))));
   ui.nudge.value = Math.log10(nudge);
 }
 ui["nudge-value"].textContent = formatNudge(nudge);
-load(ui.preset.value);
+load(startName);
 const start = Number(params.get("start")) || 0;
 const simPerRealSecond = (preset.t / PLAYBACK_SECONDS) * speedMultiplier();
-while (main.sim.time < start - 1e-9 && !main.sim.collision) {
+while (main.sim.time < start - 1e-9) {
   advance(Math.min(1 / 60, (start - main.sim.time) / simPerRealSecond));
 }
-if (params.get("paused") === "1") togglePlay();
+if (params.get("paused") === "1") setPlaying(false);
 if (params.get("panel") === "0") setPanelVisible(false);
-// The plain address is the landing page: it always opens with the welcome
-// overlay. Links with options (e.g. ?preset=..., the demo cards) go straight
-// to the simulation.
+// The plain address is the landing page: it always opens with the presets.
+// Links with options go straight to the simulation.
 if (params.get("intro") === "1" || !location.search) setIntroVisible(true);
 if (params.get("tour") === "1") startTour(TOUR_STEPS);

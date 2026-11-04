@@ -21,7 +21,8 @@ let onEnd = () => {};
 export const tourActive = () => !root.hidden;
 
 /**
- * steps: [{target: () => Element | DOMRect, title, text}]
+ * steps: [{target: () => Element | DOMRect, title, text, enter}]; enter (optional)
+ * runs when the step opens, e.g. to load the preset it talks about.
  * onEnd: called when the tour finishes or is skipped.
  */
 export function startTour(tourSteps, { onEnd: done = () => {} } = {}) {
@@ -45,6 +46,7 @@ function show(i) {
   index = i;
   const step = steps[i];
   stepLabel.textContent = `${i + 1} of ${steps.length}`;
+  step.enter?.();
   title.textContent = step.title;
   text.innerHTML = step.text;
   back.disabled = i === 0;
