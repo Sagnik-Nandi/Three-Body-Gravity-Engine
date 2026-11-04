@@ -95,7 +95,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
   machine allows, so high speeds may not go any faster.
 - **✕** (or the H key) hides the controls so the view fills the window; **☰** brings them back.
   While shown, the view (and split screen) uses the space beside them.
-- **Tide arrows**: how the tide pushes each spot around a body, relative to its centre.
+- **Tide arrows**: one arrow through each strongly affected body, along the axis the tide stretches it.
 - **More** folds away the trail length, the Tilted/Top/Side camera views and the list of masses.
 - **Camera**: drag to rotate, scroll to zoom, right-drag to pan. The orbital plane (x-y) is
   drawn as the floor grid; z is up.
@@ -108,12 +108,13 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
   - *Split screen*: original on the left, nudged copy on the right, one shared camera.
   - *Cloud*: 30 copies, every body nudged in a random direction. Stable orbits stay a
     tight bundle; chaotic ones spray apart.
-  - *Nudge size* from 1e-12 to 1e-1, a log-scale chart of the gap between original
+  - *Nudge size* from 1e-12 to 1e-1 (default 1e-4: chaotic presets visibly split within
+    seconds, while stable ones stay together), a log-scale chart of the gap between original
     and copies, and the time they become visibly apart (gap > 1% of the system's size).
     Changing the comparison or the nudge restarts the run. Particle presets have no comparison: too heavy.
 - Readout: simulation time, the energy error, and once there are collisions, the heat they made.
 
-Link options, e.g. `http://localhost:8000/?preset=lagrange&chaos=cloud&nudge=1e-9`:
+Link options, e.g. `http://localhost:8000/?preset=lagrange&chaos=cloud&nudge=1e-4`:
 
 | Option | Effect |
 |---|---|
@@ -181,7 +182,7 @@ so "energy error" still measures only numerical error, not real energy lost in t
 
 **Tides** come from gravity pulling harder on a body's near side than its far side:
 a mass M at distance r stretches a body by 2GM/r³ along the line between them and
-squeezes it by GM/r³ across. The arrows show the exact direction, with their length
+squeezes it by GM/r³ across. The arrow shows the exact stretch axis, with its length
 compressed (cube root of the strength), since the true range is too wide to draw.
 
 **Bodies made of particles** (`web/particles.js`). A moon of ~1,000 rocks held

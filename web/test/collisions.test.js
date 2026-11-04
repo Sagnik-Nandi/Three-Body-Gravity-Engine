@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { System } from "../engine.js";
+import { System, stretchAxis } from "../engine.js";
 
 const close = (a, b, tol, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what} ${a} vs ${b} (tol ${tol})`);
@@ -149,4 +149,31 @@ test("tides grow as 1/r^3", () => {
   const at = (r) => new System({ masses: [10, 1], positions: [[0, 0, 0], [r, 0, 0]],
     velocities: [[0, 0, 0], [0, 0, 0]] }).tidalTensorOn(1)[0];
   close(at(2) / at(4), 8, 1e-12);
+});
+
+test("the stretch axis points along the line to the mass raising the tide", () => {
+  const s = new System({ masses: [10, 1], positions: [[1, 2, 2], [0, 0, 0]],
+    velocities: [[0, 0, 0], [0, 0, 0]] });
+  const axis = stretchAxis(s.tidalTensorOn(1));
+  close(Math.hypot(...axis), 1, 1e-12, "unit length");
+  // Line to the mass is (1, 2, 2) / 3. Either direction: a tide stretches both ways.
+  close(Math.abs(axis[0] * 1 + axis[1] * 2 + axis[2] * 2) / 3, 1, 1e-9, "aligned");
+});
+
+test("the stretch axis is the largest stretch, with two sources", () => {
+  // Nearer mass wins: its tide dominates, though it is the lighter one.
+  const s = new System({ masses: [1, 8, 1], positions: [[2, 0, 0], [0, 10, 0], [0, 0, 0]],
+    velocities: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] });
+  const T = s.tidalTensorOn(2);
+  const axis = stretchAxis(T);
+  assert.ok(Math.abs(axis[0]) > 0.99, `axis ${axis}`);
+  const stretch = [0, 1, 2].reduce((sum, r) => sum + axis[r] * [0, 1, 2].reduce((v, c) => v + T[3 * r + c] * axis[c], 0), 0);
+  for (const other of [[0, 1, 0], [0, 0, 1]]) {
+    const along = [0, 1, 2].reduce((sum, r) => sum + other[r] * [0, 1, 2].reduce((v, c) => v + T[3 * r + c] * other[c], 0), 0);
+    assert.ok(stretch > along);
+  }
+});
+
+test("no tide: the stretch axis is still a valid direction", () => {
+  assert.deepEqual(stretchAxis(new Array(9).fill(0)), [1, 0, 0]);
 });

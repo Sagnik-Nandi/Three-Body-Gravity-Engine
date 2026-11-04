@@ -12,6 +12,25 @@ const W0 = -CBRT2 / (2 - CBRT2);
 const DRIFT = [W1 / 2, (W0 + W1) / 2, (W0 + W1) / 2, W1 / 2];
 const KICK = [W1, W0, W1];
 
+/**
+ * The axis along which a tidal tensor (see System.tidalTensor) stretches most,
+ * as a unit vector: the eigenvector of its largest eigenvalue. Found by power
+ * iteration, with T shifted by its size so every eigenvalue is positive.
+ */
+export function stretchAxis(T) {
+  const shift = Math.sqrt(T.reduce((sum, v) => sum + v * v, 0));
+  if (shift === 0) return [1, 0, 0];
+  let [x, y, z] = [0.8, 0.5, 0.3]; // not along any axis a symmetric setup would pick
+  for (let k = 0; k < 40; k++) {
+    const nx = T[0] * x + T[1] * y + T[2] * z + shift * x;
+    const ny = T[3] * x + T[4] * y + T[5] * z + shift * y;
+    const nz = T[6] * x + T[7] * y + T[8] * z + shift * z;
+    const size = Math.hypot(nx, ny, nz);
+    [x, y, z] = [nx / size, ny / size, nz / size];
+  }
+  return [x, y, z];
+}
+
 export class System {
   /**
    * A set of bodies interacting through Newtonian gravity, in 3D.

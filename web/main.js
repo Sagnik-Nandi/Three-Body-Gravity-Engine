@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+import { stretchAxis } from "./engine.js";
 import { SCENARIOS } from "./scenarios.js";
 import { startTour } from "./tour.js";
 
@@ -273,22 +274,20 @@ function seededRandom(seed) {
 
 // ---- tide arrows ------------------------------------------------------------
 
-const ARROWS_PER_BODY = 8;
-const ARROW_LENGTH = 0.45; // at the starting strength, as a fraction of the ring's radius
-const ARROW_LENGTH_MAX = 1.5;
-const ARROW_MIN_RATIO = 0.3; // a body with a weaker tide than this (cube root of the ratio) gets no arrows
-const STRETCH = new THREE.Color("#ff9d4d");
-const SQUEEZE = new THREE.Color("#6db3ff");
+const ARROW_VERTS = 10; // a shaft and two heads of two strokes, 2 ends each
+const ARROW_LENGTH = 0.6; // beyond the body, at the starting strength, as a fraction of its drawn radius
+const ARROW_LENGTH_MAX = 2;
+const ARROW_MIN_RATIO = 0.3; // a body with a weaker tide than this (cube root of the ratio) gets no arrow
+const ARROW_COLOR = new THREE.Color("#ff9d4d");
 
 /**
- * Arrows on a ring around a body, each showing how the tide pushes that spot
- * relative to the body's centre: out along the line to the source (orange), in
- * across it (blue). The direction is exact. The length is compressed (cube root
- * of the strength, so it goes with 1/distance), or moons would need arrows 300x
- * longer at closest approach.
+ * One double-headed arrow through each body, along the axis the tide stretches
+ * it. The direction is exact. The length is compressed (cube root of the
+ * strength, so it goes with 1/distance), or moons would need arrows 300x longer
+ * at closest approach.
  */
 function makeTideArrows() {
-  const verts = Math.max(main.bodies, 1) * ARROWS_PER_BODY * 6; // a shaft and two head strokes, 2 ends each
+  const verts = Math.max(main.bodies, 1) * ARROW_VERTS;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
   geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
@@ -301,7 +300,7 @@ function makeTideArrows() {
 
 const tideSize = (T) => Math.sqrt(T.reduce((sum, v) => sum + v * v, 0));
 
-/** Where to draw arrows: each body, or for a particle moon its centre, feeling the big bodies. */
+/** Where to draw an arrow: each body, or for a particle moon its centre, feeling the big bodies. */
 function tideSites() {
   const sim = main.sim;
   if (main.rocks) {
@@ -323,9 +322,9 @@ function updateTideArrows() {
   const position = tideLines.geometry.attributes.position;
   const color = tideLines.geometry.attributes.color;
   let v = 0;
-  const put = (x, y, z, c) => {
+  const put = (x, y, z) => {
     position.setXYZ(v, x, z, -y); // physics to scene
-    color.setXYZ(v, c.r, c.g, c.b);
+    color.setXYZ(v, ARROW_COLOR.r, ARROW_COLOR.g, ARROW_COLOR.b);
     v++;
   };
   for (const { centre, tensor: T, radius } of tideSites()) {
@@ -334,22 +333,19 @@ function updateTideArrows() {
     const [cx, cy, cz] = centre;
     // Far enough out to see, however small the body or wide the view.
     const onScreen = 0.035 * camera.position.distanceTo(new THREE.Vector3(cx, cz, -cy));
-    const ring = Math.max(radius * 1.3, onScreen);
-    const length = ring * Math.min(ARROW_LENGTH * ratio, ARROW_LENGTH_MAX);
-    for (let a = 0; a < ARROWS_PER_BODY; a++) {
-      const angle = (2 * Math.PI * (a + 0.5)) / ARROWS_PER_BODY;
-      const [ux, uy] = [Math.cos(angle), Math.sin(angle)];
-      const [ax, ay, az] = [T[0] * ux + T[1] * uy, T[3] * ux + T[4] * uy, T[6] * ux + T[7] * uy];
-      const size = Math.hypot(ax, ay, az) || 1;
-      const [dx, dy, dz] = [(ax / size) * length, (ay / size) * length, (az / size) * length];
-      const [px, py, pz] = [cx + ux * ring, cy + uy * ring, cz];
-      const [tx, ty, tz] = [px + dx, py + dy, pz + dz];
-      const c = ax * ux + ay * uy > 0 ? STRETCH : SQUEEZE;
-      put(px, py, pz, c);
-      put(tx, ty, tz, c);
+    const body = Math.max(radius * 1.2, onScreen);
+    const reach = body * (1 + Math.min(ARROW_LENGTH * ratio, ARROW_LENGTH_MAX));
+    const [ux, uy, uz] = stretchAxis(T);
+    const across = Math.hypot(ux, uy) || 1; // the heads open in the orbital plane
+    const [sx, sy] = [-uy / across, ux / across];
+    const head = 0.3 * body;
+    put(cx - ux * reach, cy - uy * reach, cz - uz * reach);
+    put(cx + ux * reach, cy + uy * reach, cz + uz * reach);
+    for (const end of [-1, 1]) {
+      const [tx, ty, tz] = [cx + end * ux * reach, cy + end * uy * reach, cz + end * uz * reach];
       for (const side of [-1, 1]) {
-        put(tx, ty, tz, c);
-        put(tx - 0.3 * dx - side * 0.2 * dy, ty - 0.3 * dy + side * 0.2 * dx, tz - 0.3 * dz, c);
+        put(tx, ty, tz);
+        put(tx - end * ux * head + side * sx * 0.6 * head, ty - end * uy * head + side * sy * 0.6 * head, tz - end * uz * head);
       }
     }
   }
@@ -374,7 +370,7 @@ let preset; // entry of SCENARIOS
 let main; // the original run
 let copies = []; // nudged runs (twin/split: one; cloud: many)
 let mode = "off"; // chaos comparison: off | twin | split | cloud
-let nudge = 1e-9;
+let nudge = 1e-4;
 let e0; // starting energy
 let extent; // size of the starting configuration, sets camera and drawn sizes
 let playing = true;
@@ -819,7 +815,7 @@ const TOUR_STEPS = [
   { target: presetGroup("Orbits"), enter: () => selectPreset("figure8"), title: "Orbits",
     text: "Patterns that repeat. Here, three masses share one path." },
   { target: presetGroup("Chaos"), enter: () => selectPreset("butterfly"), title: "Chaos",
-    text: "These 30 copies differ by a billionth. Watch them scatter." },
+    text: "These 30 copies start almost identical. Watch them scatter." },
   { target: presetGroup("Impacts & tides"), enter: () => selectPreset("moon-torn"), title: "Impacts & tides",
     text: "Bodies collide and merge. This moon is 1,000 rocks, and tides are tearing it apart." },
   { target: () => { const a = viewArea(); return new DOMRect(a.left, 0, a.width, a.height); },
@@ -858,7 +854,7 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("resize", () => renderer.setSize(window.innerWidth, window.innerHeight));
 
 // URL options: ?preset=pythagorean&speed=4 picks the preset and playback
-// speed; &chaos=off|twin|split|cloud&nudge=1e-9 sets the chaos comparison;
+// speed; &chaos=off|twin|split|cloud&nudge=1e-4 sets the chaos comparison;
 // &tides=0|1 the tide arrows; &start=10 fast-forwards to simulation time 10
 // (replaying the same 60 fps steps as live play, so the view is exactly what
 // you'd have seen); &paused=1 starts paused; &panel=0 starts with the controls
