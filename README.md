@@ -71,7 +71,7 @@ The web view adds more (see [Impacts and tides](#impacts-and-tides)):
 |---|---|---|
 | `butterfly`, `twins` | `pythagorean` as a cloud of 30 nudged copies, and with one nudged ghost copy | Same as `pythagorean` |
 | `flyby` | A star passes a tight pair, keeps one as a new partner and throws the other out | The new pair stays together; the old partner leaves |
-| `flower`, `trefoil`, `loops`, `choreography` | Clean repeating patterns; only `flower` is stable | All return to the start after one period; `flower` survives a nudge; `choreography` leaves its path within 5 periods |
+| `flower`, `rosette`, `trefoil`, `loops`, `choreography` | Clean repeating patterns; only `flower` and `rosette` are stable | All return to the start after one period; `flower` and `rosette` survive a nudge; `choreography` leaves its path within 5 periods |
 | `head-on` | Two planets meet head-on and merge; the survivor swings around the star | One merge; momentum and energy budget balance |
 | `tides` | Tide arrows on a moon, surging at each close pass | Arrows use the tidal tensor, checked against the real difference in gravity |
 | `moon-holds` | 1,000 rocks stay a moon, outside the Roche limit | Keeps its shape over 3 orbits |
@@ -175,7 +175,8 @@ early on but diverges later and gives a different outcome. Its preset uses
 
 ## Patterns
 
-Periodic orbits of three equal masses, from Broucke (1975) and Simó (2001). The starting values
+Periodic orbits from Broucke (1975), Simó (2001) and the Three Body Orbits rosette family, all with
+equal masses except `rosette` (1.005, 0.497, 0.995). The starting values
 are from [Three Body Orbits](https://www.threebodyorbits.com), used under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
@@ -184,6 +185,7 @@ Periodic doesn't mean stable. Measured on this engine, here is how long each hol
 | Preset | Orbit | Holds for | At 1x |
 |---|---|---|---|
 | `flower` | Broucke A5 | Stable | Indefinitely |
+| `rosette` | Rosette 4:7 | Stable | Indefinitely |
 | `trefoil` | Broucke A10 | ~8-11 periods | ~2 minutes |
 | `loops` | Broucke R2 | ~10-13 periods | ~90 s |
 | `choreography` | Simó SC.87 | ~1 period | ~15-20 s |

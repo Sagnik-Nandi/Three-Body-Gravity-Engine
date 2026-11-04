@@ -139,21 +139,22 @@ export function eccentricMoon() {
 }
 
 /**
- * Periodic orbits of three equal masses. Numbers: the refined starting values from
+ * Periodic orbits of three equal masses (unless `masses` says otherwise). Numbers: the refined starting values from
  * Three Body Orbits, https://www.threebodyorbits.com (CC BY 4.0). Orbits: Broucke
- * (1975) and Simo (2001). pos, vel: starting positions and velocities; T: the period.
- * Only `flower` is stable. The others repeat for a while, then tiny errors grow and
+ * (1975) and Simo (2001), plus a rosette from its catalogue. pos, vel: starting positions and velocities; T: the period.
+ * Only `flower` and `rosette` are stable. The others repeat for a while, then tiny errors grow and
  * they break up: after ~8 periods for trefoil, ~10 for loops, ~1 for choreography.
  */
 export const PATTERNS = {
   flower: { pos: [[0.23550991075504524, -0.000543526760802538], [0.9711393382752979, 0.0001773756774700954], [-1.206649249030343, 0.0003661510833324426]], vel: [[-0.0005903109150803246, 1.2795726489984942], [0.0008794026465458129, -0.40214513180788286], [-0.0002890917314654884, -0.8774275171906113]], T: 8.689119976290863 }, // Broucke A5
+  rosette: { masses: [1.005, 0.4970167593231461, 0.995], pos: [[-0.6823331636092627, 2.947891402057799e-15], [0.7437703463399286, -1.0784404085696821e-15], [0.3176668363907373, -2.438822012138346e-15]], vel: [[-2.619864226984394e-15, -0.34906761310316886], [-7.001846054579859e-18, -1.6564924971287374], [2.649692043170495e-15, 1.180017571793684]], T: 21.203709327847847 }, // rosette 4:7
   trefoil: { pos: [[-0.5426372741754075, 0.000611838328232161], [2.527565296992829, -5.7923062901903644e-05], [-1.9849280228174218, -0.0005539152653302574]], vel: [[-0.00025260363257767775, 0.8750073506362065], [-0.00010815209443286432, -0.05269482115898142], [0.0003607557270105421, -0.8223125294772251]], T: 32.610946912739685 }, // Broucke A10
   loops: { pos: [[0.9060312861096047, -0.0002720902384283883], [-0.6909278878836602, 0.0004733055339912139], [-0.21510339822594451, -0.0002012152955628256]], vel: [[0.0003374782907750624, 0.9658857929344913], [-0.0014112698277407843, -1.6223724909372397], [0.001073791536965722, 0.6564866980027484]], T: 5.70421628566081 }, // Broucke R2
   choreography: { pos: [[-0.04242849437749801, -2.3679062677758333e-08], [0.02121436158059094, -0.20520759178859768], [0.021214132796907068, 0.20520761546766034]], vel: [[-7.435338415995941e-08, 0.13233725075756994], [2.689282219076956, -0.06616712590872742], [-2.6892821447235717, -0.06617012484884253]], T: 10.665883646896663 }, // Simo SC.87
 };
 
-export function periodicOrbit({ pos, vel }) {
-  return makeSystem([1, 1, 1], pos, vel, 0);
+export function periodicOrbit({ pos, vel, masses = [1, 1, 1] }) {
+  return makeSystem(masses, pos, vel, 0);
 }
 
 /**
@@ -198,11 +199,13 @@ export const SCENARIOS = {
 
   flower: { label: "Flower", group: "Patterns", make: () => periodicOrbit(PATTERNS.flower), t: 2 * PATTERNS.flower.T, eta: 0.001, trail: 3600,
     about: "A pair draws petals inside a third body's circle. Stable." },
+  rosette: { label: "Rosette", group: "Patterns", make: () => periodicOrbit(PATTERNS.rosette), t: PATTERNS.rosette.T, eta: 0.001, trail: 3600,
+    about: "A spirograph of interwoven rings. Stable, with one lighter body." },
   trefoil: { label: "Trefoil", group: "Patterns", make: () => periodicOrbit(PATTERNS.trefoil), t: PATTERNS.trefoil.T, eta: 0.001, trail: 3600,
     about: "A three-lobed pattern. Repeats for about 2 minutes, then drifts apart." },
   loops: { label: "Loops", group: "Patterns", make: () => periodicOrbit(PATTERNS.loops), t: 2 * PATTERNS.loops.T, eta: 0.001, trail: 3600,
     about: "Two bodies loop inside a third body's circle. Repeats for about 90 s, then breaks up." },
-  choreography: { label: "Choreography", group: "Patterns", make: () => periodicOrbit(PATTERNS.choreography), t: PATTERNS.choreography.T, eta: 0.001, trail: 3600,
+  choreography: { label: "Choreography", group: "Patterns", make: () => periodicOrbit(PATTERNS.choreography), t: PATTERNS.choreography.T, eta: 0.001, trail: 3600, extent: 0.75,
     about: "All three share one path, for one lap. So unstable it can't last." },
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,

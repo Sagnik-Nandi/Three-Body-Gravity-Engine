@@ -223,20 +223,23 @@ for (const [name, orbit] of Object.entries(PATTERNS)) {
   });
 }
 
-test("flower is stable: it survives a nudge, keeping its size", () => {
-  const { flower } = PATTERNS;
-  const s = periodicOrbit(flower);
-  const reach = () => Math.max(...[0, 1, 2].map((i) => Math.hypot(s.pos[3 * i], s.pos[3 * i + 1])));
-  const size = reach();
-  s.pos[0] += 1e-4;
-  s.merge = true;
-  const minScale = 1e-8 * s.timescale();
-  for (let t = 1; t <= 100; t++) {
-    s.advanceTo(t, 0.003, minScale);
-    assert.equal(s.n, 3, "no collision");
-    assert.ok(reach() < 1.3 * size, `t=${t}: reach ${reach()} vs ${size}`);
-  }
-});
+for (const name of ["flower", "rosette"]) {
+  test(`${name} is stable: it survives a nudge, keeping its size`, () => {
+    const s = periodicOrbit(PATTERNS[name]);
+    const clean = periodicOrbit(PATTERNS[name]);
+    const reach = (sim) => Math.max(...[0, 1, 2].map((i) => Math.hypot(sim.pos[3 * i], sim.pos[3 * i + 1])));
+    let size = 0;
+    for (let k = 1; k <= 40; k++) { clean.advanceTo((k / 40) * PATTERNS[name].T, 0.003); size = Math.max(size, reach(clean)); }
+    s.pos[0] += 1e-4;
+    s.merge = true;
+    const minScale = 1e-8 * s.timescale();
+    for (let t = 1; t <= 100; t++) {
+      s.advanceTo(t, 0.003, minScale);
+      assert.equal(s.n, 3, "no collision");
+      assert.ok(reach(s) < 1.3 * size, `t=${t}: reach ${reach(s)} vs ${size}`);
+    }
+  });
+}
 
 test("the choreography is unstable: within a few periods it has left its path", () => {
   const { choreography: orbit } = PATTERNS;
