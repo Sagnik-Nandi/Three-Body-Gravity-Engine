@@ -355,6 +355,19 @@ export class ParticleSystem extends System {
     return c.map((x) => x / (count || 1));
   }
 
+  /** Centre of the rocks that started in the impactor. */
+  cometCentre() {
+    const c = [0, 0, 0];
+    let count = 0;
+    for (let i = this.nBig; i < this.n; i++) {
+      if (this.ids[i] >= this.cometFrom) {
+        count++;
+        for (let k = 0; k < 3; k++) c[k] += this.pos[3 * i + k];
+      }
+    }
+    return c.map((x) => x / (count || 1));
+  }
+
   /** Root-mean-square distance of the particles from their centre: how spread out they are. */
   spread() {
     const c = this.particleCentre();
@@ -563,6 +576,7 @@ export function cometImpact({ n = 1000, massRatio = 0.1, speed = 1.2, offset = 0
   const sim = new ParticleSystem({ masses, positions, velocities, radii, G, nBig: 1,
     softening: a, stiffness, damping, stillSpeed, dt, substeps: SUBSTEPS });
   sim.cometFrom = 1 + planet.length; // rocks with this id or higher began in the comet
+  sim.contactTime = approach;
   sim.planetRadius = planetRadius;
   sim.hillRadius = orbit * Math.cbrt(planetMass / (3 * sunMass)); // beyond this, the Sun wins
   return sim;

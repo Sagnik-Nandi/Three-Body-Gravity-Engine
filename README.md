@@ -237,7 +237,8 @@ is set first, then run backwards, so the impactor really arrives from deep space
 clump that orbits as a moon, but no lasting moon or disk formed in a scan of 84 impacts: each
 clump's orbit dips inside the Roche limit, so it is shredded or falls back. Real moon-forming
 impacts have melt and vapour pressure, which can push debris onto wider orbits; these rocks have
-neither. This preset uses the settings that kept a moon longest.
+neither. This preset uses the settings that kept a moon longest. The main view stays on the planet;
+the inset shows the whole system from above, with the planet's path around the Sun.
 
 ## Tests
 

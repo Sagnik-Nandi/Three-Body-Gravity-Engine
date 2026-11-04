@@ -23,6 +23,7 @@ const SINGULAR_RATIO = 1e-8; // same point-mass collision cutoff as System.run
 const VISIBLE_GAP = 0.01; // a gap of 1% of the system's size counts as visible
 const FRAME_BUDGET_MS = 12; // particle physics gets this long per frame; slower machines run in slow motion
 const SLOW_READOUT_SECONDS = 0.25; // particle energy costs N^2, so it updates this often
+const FOLLOW_TILT = 2.6; // how steeply the view looks down on a followed planet
 const FLASH_SECONDS = 1.2; // how long a merge's flash lasts
 const FLASH_SIZE = 0.09; // its final radius, as a fraction of the scene size
 const ROCK_COLORS = ["#c8ccd4", "#8d94a3"]; // moon particles: alternating wedges, so shearing shows
@@ -373,7 +374,7 @@ const ui = Object.fromEntries(
     "trail", "trail-value", "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
     "chaos", "chaos-row", "nudge", "nudge-value", "chaos-panel", "chart", "horizon", "split-labels",
     "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start",
-    "tides", "heat", "heat-row", "count", "count-row", "orbiting", "orbiting-row"]
+    "tides", "heat", "heat-row", "count", "count-row", "orbiting", "orbiting-row", "inset"]
     .map((id) => [id, document.getElementById(id)]),
 );
 
@@ -389,8 +390,8 @@ let playing = true;
 let gapHistory = []; // [time, gap] for the chart
 let horizon = null; // time the copies first visibly separated
 let floor = null; // the grid in the orbital plane
+let inset = null; // the markers in the small overview, if shown
 const followed = new THREE.Vector3(); // where the view was last centred
-const UP = new THREE.Vector3(0, 1, 0);
 let tideLines = null;
 let tideReference = 1;
 let flashes = []; // merges being shown: {mesh, age}
@@ -443,6 +444,8 @@ function load(name) {
     }
   }
   makeTideArrows();
+  inset = preset.follow ? makeInset(main) : null;
+  ui.inset.hidden = !inset;
   recordGap();
 
   ui.about.textContent = preset.about;
@@ -488,12 +491,9 @@ function formatNudge(x) {
 
 function setView(kind) {
   const d = extent * 3.2;
-  const directions = { angle: [0, 0.75, 1], top: [0, 1, 1e-4], side: [0, 0.02, 1] };
+  const directions = { angle: [0, preset.follow ? FOLLOW_TILT : 0.75, 1], top: [0, 1, 1e-4], side: [0, 0.02, 1] };
   const centre = followPoint();
-  camera.position.set(...directions[kind]);
-  // A followed planet is seen from its far side, with the Sun behind it.
-  if (preset.follow && kind === "angle") camera.position.set(centre.x, 0.45 * centre.length(), centre.z);
-  camera.position.normalize().multiplyScalar(d).add(centre);
+  camera.position.set(...directions[kind]).normalize().multiplyScalar(d).add(centre);
   controls.target.copy(centre);
   controls.update();
   followed.copy(centre);
@@ -510,15 +510,70 @@ function followPoint() {
 function updateFollow() {
   if (!preset.follow) return;
   const centre = followPoint();
-  // Turn with the orbit, so the Sun stays in view, and carry the camera along.
-  const turn = Math.atan2(followed.x, followed.z) - Math.atan2(centre.x, centre.z);
-  const offset = camera.position.clone().sub(controls.target);
-  offset.applyAxisAngle(UP, -turn);
-  controls.target.copy(centre);
-  camera.position.copy(centre).add(offset);
+  const moved = centre.clone().sub(followed);
+  camera.position.add(moved);
+  controls.target.add(moved);
   floor.position.set(centre.x, 0, centre.z);
-  floor.rotation.y = Math.atan2(centre.x, centre.z);
   followed.copy(centre);
+  updateInset(centre);
+}
+
+// ---- inset: the whole system from above, for a preset that follows the planet -------
+
+const INSET_LAYER = 1; // things only the inset's camera draws
+const INSET_MARGIN = 12;
+const INSET_SIZE = 210; // on screen, at most
+const INSET_ROOM = 1.3; // the view's half-width, in orbit radii
+const insetCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1e4);
+insetCamera.layers.set(INSET_LAYER);
+insetCamera.up.set(0, 0, -1);
+insetCamera.position.set(0, 1000, 0);
+insetCamera.lookAt(0, 0, 0);
+scene.children.filter((c) => c.isLight).forEach((light) => light.layers.enable(INSET_LAYER));
+
+/** Markers for the inset: the Sun itself, dots for the planet and the impactor
+ *  (too small to see at this scale), and the path the planet has taken. */
+function makeInset(run) {
+  run.meshes[0].traverse((part) => part.layers.enable(INSET_LAYER));
+  const dot = (color) => {
+    const d = screenDot(new THREE.Color(color), DOT, 6);
+    d.layers.set(INSET_LAYER);
+    d.frustumCulled = false;
+    run.group.add(d);
+    return d;
+  };
+  const trail = new Trail(new THREE.Color("#8d94a3"), MAX_TRAIL);
+  trail.line.layers.set(INSET_LAYER);
+  run.group.add(trail.line);
+  const room = INSET_ROOM * followPoint().length();
+  insetCamera.left = insetCamera.bottom = -room;
+  insetCamera.right = insetCamera.top = room;
+  insetCamera.updateProjectionMatrix();
+  return { planet: dot("#c8ccd4"), impactor: dot(ROCK_IMPACTOR), trail };
+}
+
+function updateInset(centre) {
+  if (!inset) return;
+  inset.planet.position.copy(centre);
+  const sim = main.sim;
+  inset.impactor.visible = sim.time < sim.contactTime;
+  if (inset.impactor.visible) {
+    const [x, y, z] = sim.cometCentre();
+    inset.impactor.position.set(x, z, -y);
+  }
+  inset.trail.push(centre);
+  inset.trail.update(MAX_TRAIL, 0);
+}
+
+/** Draw the inset in the top right corner of the window. */
+function renderInset() {
+  const { width, height } = viewArea();
+  const size = Math.min(INSET_SIZE, Math.floor(0.3 * Math.min(width, height)));
+  const x = window.innerWidth - size - INSET_MARGIN;
+  renderer.setViewport(x, height - size - INSET_MARGIN, size, size);
+  renderer.setScissor(x, height - size - INSET_MARGIN, size, size);
+  renderer.render(scene, insetCamera);
+  Object.assign(ui.inset.style, { left: `${x}px`, top: `${INSET_MARGIN}px`, width: `${size}px`, height: `${size}px` });
 }
 
 // ---- simulation loop --------------------------------------------------------
@@ -724,6 +779,7 @@ function render() {
   }
   for (const run of [main, ...copies]) run.group.visible = true;
   if (mode === "split") placeSplitLabels(left, width);
+  if (inset) renderInset();
 }
 
 /** Centre the "Original" / "Nudged" labels over their halves, divider between. */

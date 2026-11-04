@@ -75,6 +75,8 @@
     #split-labels .left, #split-labels .right { transform: translateX(-50%); }
     #split-labels .divider { position: absolute; top: 0; bottom: 0; width: 1px;
       background: var(--line); }
+    #inset { position: fixed; border: 1px solid var(--line); border-radius: 6px; pointer-events: none; }
+    #inset[hidden] { display: none; }
     #panel-show { position: fixed; top: 12px; left: 12px; background: var(--panel); }
     #panel[hidden], #panel-show[hidden] { display: none; }
 
@@ -139,6 +141,8 @@
     <span class="left">Original</span>
     <span class="right" id="split-right">Nudged</span>
   </div>
+
+  <div id="inset" hidden></div>
 
   <div id="intro" hidden>
     <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">

@@ -220,7 +220,7 @@ export const SCENARIOS = {
     about: "Outside the Roche limit, gravity holds 1,000 rocks together." },
   "moon-torn": { label: "Moon torn", group: "Impacts & tides", make: () => moonInOrbit({ distance: 7 }), t: 45, tides: true, particles: true, extent: 11,
     about: "Inside the Roche limit, tides win." },
-  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 6, follow: true,
+  impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 75, particles: true, extent: 7, follow: true,
     about: "A huge hit throws out a moon, but it can't last: it falls back." },
   comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 16,
     about: "One close pass pulls a comet into a string." },
