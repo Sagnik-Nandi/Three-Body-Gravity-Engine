@@ -115,6 +115,7 @@ symmetry survives rounding exactly, so it stays perfect indefinitely until nudge
     and copies, and the time they become visibly apart (gap > 1% of the system's size).
     Changing the comparison or the nudge restarts the run. Particle presets have no comparison: too heavy.
 - Readout: simulation time, the energy error, and once there are collisions, the heat they made.
+  Particle presets also count their rocks, and Giant impact counts those in orbit.
 
 Link options, e.g. `http://localhost:8000/?preset=lagrange&chaos=cloud&nudge=1e-4`:
 
@@ -224,22 +225,25 @@ This is a different method from the rest of the engine, because many bodies need
 - **Two speeds**: contacts and the planet's gravity are cheap and fast-changing, so they get
   8 substeps for each N² calculation of gravity between rocks.
 - **Contacts** are a spring and a dashpot along the line between two rocks, so momentum and
-  angular momentum stay exact (~1e-15). The dashpot's energy becomes heat. It ignores
+  angular momentum stay exact (~1e-15). They are soft, squashing up to 30% of a rock's radius
+  at the centre of a moon, because softer contacts allow a longer step, which keeps these fast. The dashpot's energy becomes heat. It ignores
   relative motion too small to be real (what one gravity kick leaves behind), or a pile at
   rest would endlessly count that as heat.
 
-Expect an energy error around 1e-4 for a moon that holds, and up to ~5e-3 for a violent
-breakup with many impacts. The results are **qualitatively right but not predictive**:
+Expect an energy error around 1e-4 for a moon that holds, and around 1e-3 for a violent
+breakup or impact. The results are **qualitatively right but not predictive**:
 1,000 rocks are coarse, there is no friction or material strength, and impacts don't melt
 or vaporise anything. Exact fragments would differ with a different number of rocks.
 
 **Giant impact.** The planet and impactor are both rocks, and the Sun is a point. The contact
 is set first, then run backwards, so the impactor really arrives from deep space. It throws out a
-clump that orbits as a moon, but no lasting moon or disk formed in a scan of 84 impacts: each
+clump that orbits as a moon, but no lasting moon or disk formed in a scan of 92 impacts: each
 clump's orbit dips inside the Roche limit, so it is shredded or falls back. Real moon-forming
 impacts have melt and vapour pressure, which can push debris onto wider orbits; these rocks have
-neither. This preset uses the settings that kept a moon longest. The main view stays on the planet;
-the inset shows the whole system from above, with the planet's path around the Sun.
+neither. These runs are very sensitive: softening the contacts changed the moon's fate, so the
+preset's aim was retuned to keep a large moon that falls back. The main view stays on the planet, seen
+from its far side with the Sun at the top edge; the inset shows the whole system from above, with the
+planet's path around the Sun. The hit changes that path: the orbit becomes eccentric.
 
 ## Tests
 
@@ -248,10 +252,10 @@ cd python
 python test_engine.py                 # Python physics tests (~30 s)
 
 cd web
-npm test                              # 51 JS tests, ~15 s
+npm test                              # 67 JS tests, ~30 s
 ```
 
-The JS tests are of two kinds:
+The JS tests:
 - `test/engine.test.js`: the same physics checks as `test_engine.py`.
 - `test/collisions.test.js`, `test/particles.test.js`: merges, tides, contacts, the Roche limit.
 - `test/crosscheck.test.js`: runs every scenario and compares positions and
@@ -278,8 +282,9 @@ python web/test/make_reference.py
   they pass close, forces change violently and steps shrink automatically
   (≈1% of the remaining distance per step), so close encounters stay accurate.
 - **Collisions:** each body has radius `size × mass^(1/3)` (equal density).
-  When two surfaces touch, the run stops and the impact is marked.
-  Point masses (size 0) can't touch, so the run stops only if the pair's
+  When two surfaces touch, the Python run stops and the impact is marked; the web view merges
+  them and carries on (see [Impacts and tides](#impacts-and-tides)).
+  Point masses (size 0) can't touch, so this happens only if the pair's
   timescale falls below 1e-8 of its starting value (~1/200,000 of the distance),
   meaning they are heading into a true singularity. Near-misses like the
   Pythagorean problem's (4e-4 apart) pass through untouched.

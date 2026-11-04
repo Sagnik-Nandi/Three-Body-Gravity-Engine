@@ -675,12 +675,22 @@ function updateBodyList() {
   for (let id = 0; id < main.bodies; id++) {
     const i = sim.indexOfId(id);
     const dot = `<span class="dot" style="background:${COLORS[id % COLORS.length]};${i < 0 ? "opacity:0.3" : ""}"></span>`;
-    rows.push(`<li>${dot}body ${id + 1}, ${i < 0 ? "merged" : `mass ${formatNumber(sim.masses[i])}`}</li>`);
+    const name = sim.cometFrom ? "Sun" : `body ${id + 1}`;
+    rows.push(`<li>${dot}${name}, ${i < 0 ? "merged" : `mass ${formatNumber(sim.masses[i])}`}</li>`);
   }
   if (main.rocks) {
-    let mass = 0;
-    for (let i = sim.nBig; i < sim.n; i++) mass += sim.masses[i];
-    rows.push(`<li><span class="dot" style="background:${ROCK_CORE}"></span>${sim.particleCount} rocks, mass ${formatNumber(mass)}</li>`);
+    // By where the rocks started, in the colour they have on screen.
+    const groups = sim.cometFrom
+      ? [{ name: "Planet", color: ROCK_COLORS[0], count: 0, mass: 0 }, { name: "Impactor", color: ROCK_IMPACTOR, count: 0, mass: 0 }]
+      : [{ name: preset.rocks ?? "Moon", color: ROCK_COLORS[0], count: 0, mass: 0 }];
+    for (let i = sim.nBig; i < sim.n; i++) {
+      const group = groups[sim.cometFrom && sim.ids[i] >= sim.cometFrom ? 1 : 0];
+      group.count++;
+      group.mass += sim.masses[i];
+    }
+    for (const { name, color, count, mass } of groups) {
+      rows.push(`<li><span class="dot" style="background:${color}"></span>${name}, ${count} rocks, mass ${formatNumber(mass)}</li>`);
+    }
   }
   ui.bodies.innerHTML = rows.join("");
 }

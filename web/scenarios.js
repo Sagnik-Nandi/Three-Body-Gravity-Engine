@@ -165,7 +165,7 @@ export function binaryFlyby(aim = -2) {
 /**
  * A Sun, a spinning planet, and an object a fifth of the planet's mass from outside
  * the system. It clips the planet and throws out a clump that orbits as a moon for a
- * while. These settings gave the longest-lived moon found, but in a scan of 84 impacts
+ * while. These settings gave the longest-lived moon found, but in a scan of 92 impacts
  * none lasted: every clump's orbit dips inside the Roche limit, so it falls back.
  */
 export function giantImpact() {
@@ -176,7 +176,7 @@ export function giantImpact() {
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
-// follow: the camera stays with the planet; viewDistance: how far back it stands; tides: arrows on; trail: starting trail length; particles: made of particles (these
+// follow: the camera stays with the planet; viewDistance: how far back it stands; rocks: what the rocks are called in the list of masses; tides: arrows on; trail: starting trail length; particles: made of particles (these
 // step themselves, and can't be compared: too heavy); follow: the camera stays with the planet; extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
@@ -222,6 +222,6 @@ export const SCENARIOS = {
     about: "Inside the Roche limit, tides win." },
   impact: { label: "Giant impact", group: "Impacts & tides", make: () => giantImpact(), t: 42, particles: true, extent: 6.5, follow: true, viewDistance: 35,
     about: "A huge hit throws out a moon, but it can't last: it falls back." },
-  comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, extent: 16,
+  comet: { label: "Comet", group: "Impacts & tides", make: () => cometFlyby({ closest: 3.5, start: 22 }), t: 24, particles: true, rocks: "Comet", extent: 16,
     about: "One close pass pulls a comet into a string." },
 };
