@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { ParticleSystem, cometFlyby, cometImpact, impactOutcome, moonInOrbit, packedSphere, rubbleSystem } from "../particles.js";
-import { PATTERNS, SCENARIOS, binaryFlyby, giantImpact, headOn, periodicOrbit } from "../scenarios.js";
+import { PATTERNS, SCENARIOS, binaryFlyby, blackHoleFlyby, giantImpact, headOn, periodicOrbit, rogueStar, slingshot } from "../scenarios.js";
 
 const close = (a, b, tol, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what} ${a} vs ${b} (tol ${tol})`);
@@ -330,4 +330,43 @@ test("giant impact preset: a moon forms in orbit, then doesn't last", () => {
   s.advanceTo(120);
   const later = impactOutcome(s);
   assert.ok(later.clump < moon.clump / 3, `gone by t = 120: clump of ${later.clump}`);
+});
+
+/** Energy per mass of body i relative to body j: negative means bound. */
+function energyAround(s, i, j) {
+  const [dx, dy, dz] = [0, 1, 2].map((c) => s.pos[3 * i + c] - s.pos[3 * j + c]);
+  const [vx, vy, vz] = [0, 1, 2].map((c) => s.vel[3 * i + c] - s.vel[3 * j + c]);
+  return 0.5 * (vx * vx + vy * vy + vz * vz) - (s.G * s.masses[j]) / Math.hypot(dx, dy, dz);
+}
+
+test("rogue star: one planet stays, one is flung out, one is stolen", () => {
+  const preset = SCENARIOS["rogue-star"];
+  const s = rogueStar();
+  s.merge = true;
+  s.advanceTo(40, preset.eta);
+  assert.equal(s.n, 5, "nothing collides");
+  assert.ok(energyAround(s, 1, 0) < 0, "inner planet stays with the Sun");
+  assert.ok(energyAround(s, 2, 0) > 0 && energyAround(s, 2, 4) > 0, "middle planet is free");
+  assert.ok(energyAround(s, 3, 4) < 0, "outer planet goes with the star");
+});
+
+test("slingshot: a probe on a closed orbit leaves the system after passing the planet", () => {
+  const preset = SCENARIOS.slingshot;
+  const s = slingshot();
+  s.merge = true;
+  assert.ok(energyAround(s, 2, 0) < 0, "starts bound");
+  s.advanceTo(preset.t, preset.eta);
+  assert.equal(s.n, 3, "the probe misses the planet");
+  assert.ok(energyAround(s, 2, 0) > 0, "ends free");
+});
+
+test("black hole: captures one star of the pair and flings the other out", () => {
+  const preset = SCENARIOS["black-hole"];
+  const s = blackHoleFlyby();
+  s.merge = true;
+  s.advanceTo(preset.t, preset.eta);
+  assert.equal(s.n, 3, "nothing collides");
+  const [a, b] = [energyAround(s, 1, 0), energyAround(s, 2, 0)];
+  assert.ok((a < 0) !== (b < 0), "one captured, one free");
+  assert.ok(Math.sqrt(2 * Math.max(a, b)) > 3, "the free one leaves fast");
 });

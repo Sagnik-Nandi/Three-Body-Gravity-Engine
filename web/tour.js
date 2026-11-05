@@ -103,7 +103,7 @@ back.addEventListener("click", () => index > 0 && show(index - 1));
 next.addEventListener("click", () => (index < steps.length - 1 ? show(index + 1) : endTour()));
 root.querySelector(".tour-skip").addEventListener("click", endTour);
 window.addEventListener("resize", position);
-document.getElementById("panel").addEventListener("scroll", position);
+document.getElementById("panel").addEventListener("scroll", position, true); // true: also the experiments list inside it
 
 // While the tour is open it owns the keyboard (capture phase, so the
 // simulation's own shortcuts like Space don't fire underneath).

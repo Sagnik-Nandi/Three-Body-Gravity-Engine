@@ -12,15 +12,24 @@
       --muted: #8b95a7;
       --accent: #4a90e2;
       --line: #2a3140;
+      --go: #3fb950;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
       font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
     #view { position: fixed; inset: 0; }
     #panel { position: fixed; top: 12px; left: 12px; width: 290px; max-height: calc(100% - 24px);
+      display: flex; flex-direction: column;
       overflow-y: auto; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line);
       border-radius: 10px; backdrop-filter: blur(6px);
       scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+    #panel > * { flex: none; }
+    /* The experiments give up height first, and scroll, so the panel fits the window. */
+    #panel > #presets { flex: 0 1 auto; min-height: 150px; overflow-y: auto; margin-top: 8px;
+      padding-bottom: 6px; border-bottom: 1px solid var(--line);
+      scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+    #presets .group-name { margin-top: 8px; }
+    #presets > :first-child .group-name { margin-top: 0; }
     h1 { margin: 0; font-size: 16px; font-weight: 600; }
     .about { margin: 8px 0 0; font-size: 13px; color: #c4ccda; min-height: 2.8em; }
     label, .group-name { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 11.5px;
@@ -85,19 +94,18 @@
       justify-content: center; padding: 16px; background: rgba(11, 14, 20, 0.55);
       backdrop-filter: blur(3px); }
     #intro[hidden] { display: none; }
-    .intro-card { position: relative; width: 100%; max-width: 940px; max-height: 100%; overflow-y: auto;
+    .intro-card { position: relative; width: 100%; max-width: 560px; max-height: 100%; overflow-y: auto;
       padding: 20px 22px; background: rgba(20, 24, 33, 0.95); border: 1px solid var(--line);
       border-radius: 14px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
     .intro-card h2 { margin: 0; font-size: 22px; font-weight: 650; }
     .intro-card .lead { margin: 2px 0 0; color: #c4ccda; }
     #intro-close { position: absolute; top: 14px; right: 14px; }
-    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 6px; }
-    .tile { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; text-align: left; border-radius: 8px; }
-    .tile strong { font-size: 13.5px; font-weight: 600; }
-    .tile span { color: var(--muted); font-size: 12px; line-height: 1.3; }
-    .intro-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px;
-      margin-top: 14px; }
-    .intro-foot a { color: var(--muted); font-size: 12.5px; }
+    .intro-head { display: flex; align-items: center; gap: 14px; padding-right: 36px; }
+    #tour-start { padding: 5px 14px; background: var(--go); border-color: var(--go); color: #06230f; font-weight: 650; }
+    #tour-start:hover { filter: brightness(1.12); border-color: var(--go); }
+    #intro-about { min-height: 2.8em; margin: 10px 0 0; color: #c4ccda; font-size: 13px; }
+    .intro-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; }
+    .intro-foot a { color: var(--muted); font-size: 12px; }
 
     /* Guided tour */
     #tour[hidden] { display: none; }
@@ -147,14 +155,17 @@
   <div id="intro" hidden>
     <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
       <button id="intro-close" class="icon small" title="Close (Esc)" aria-label="Close">✕</button>
-      <h2 id="intro-title">Three Body</h2>
+      <div class="intro-head">
+        <h2 id="intro-title">Three Body</h2>
+        <button id="tour-start">Quick tour</button>
+      </div>
       <p class="lead">Gravity, simulated live. Pick an experiment:</p>
       <div id="intro-presets"></div>
+      <p id="intro-about"></p>
       <div class="intro-foot">
         <a href="https://github.com/Sagnik-Nandi/Three-Body-Gravity-Engine" target="_blank"
           rel="noopener">Source and physics notes</a>
         <a href="https://www.threebodyorbits.com" target="_blank" rel="noopener">Orbit data: Three Body Orbits (CC BY 4.0)</a>
-        <button id="tour-start">Quick tour</button>
       </div>
     </div>
   </div>

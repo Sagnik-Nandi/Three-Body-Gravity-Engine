@@ -371,7 +371,7 @@ function updateTideArrows() {
 // ---- state ----------------------------------------------------------------
 
 const ui = Object.fromEntries(
-  ["presets", "intro-presets", "about", "play", "icon-play", "icon-pause", "reset", "speed", "speed-value",
+  ["presets", "intro-presets", "intro-about", "about", "play", "icon-play", "icon-pause", "reset", "speed", "speed-value",
     "trail", "trail-value", "view-angle", "view-top", "view-side", "bodies", "time", "energy", "status",
     "chaos", "chaos-row", "nudge", "nudge-value", "chaos-panel", "chart", "horizon", "split-labels",
     "split-right", "panel-show", "panel-hide", "intro", "intro-open", "intro-close", "tour-start",
@@ -454,6 +454,7 @@ function load(name) {
   ui.about.textContent = preset.about;
   for (const chip of ui.presets.querySelectorAll(".chip")) {
     chip.classList.toggle("active", chip.dataset.preset === name);
+    if (chip.dataset.preset === name) chip.scrollIntoView({ block: "nearest" });
   }
   ui.chaos.value = mode;
   ui["chaos-row"].hidden = Boolean(preset.particles);
@@ -522,8 +523,9 @@ function bearingFromSun(point) {
   return Math.atan2(point.x - sun.x, point.z - sun.z);
 }
 
-/** The point the view stays on: the planet, for a preset that follows it. */
+/** The point the view stays on: a tracked body, or the planet, for a preset that follows it. */
 function followPoint() {
+  if (preset.track !== undefined) return toScene(main.sim, main.sim.holderOf(preset.track), new THREE.Vector3());
   if (!preset.follow) return new THREE.Vector3();
   const [x, y, z] = main.sim.planetCentre();
   return new THREE.Vector3(x, z, -y);
@@ -531,6 +533,15 @@ function followPoint() {
 
 /** Move the camera and the floor grid along with the planet. */
 function updateFollow() {
+  if (preset.track !== undefined) {
+    const centre = followPoint();
+    const shift = centre.clone().sub(followed);
+    controls.target.add(shift);
+    camera.position.add(shift);
+    floor.position.set(centre.x, centre.y, centre.z);
+    followed.copy(centre);
+    return;
+  }
   if (!preset.follow) return;
   const centre = followPoint();
   // Carry the camera along and turn it with the orbit, so the Sun stays where it is on screen.
@@ -921,19 +932,19 @@ buildMenu(ui.presets, "chips", (name, p) => {
   chip.addEventListener("click", () => selectPreset(name));
   return chip;
 });
-buildMenu(ui["intro-presets"], "tiles", (name, p) => {
-  const tile = document.createElement("button");
-  tile.className = "tile";
-  const strong = document.createElement("strong");
-  strong.textContent = p.label;
-  const span = document.createElement("span");
-  span.textContent = p.about;
-  tile.append(strong, span);
-  tile.addEventListener("click", () => {
+buildMenu(ui["intro-presets"], "chips", (name, p) => {
+  const chip = document.createElement("button");
+  chip.className = "chip";
+  chip.textContent = p.label;
+  // One line about whichever is under the pointer, instead of a box for each.
+  const describe = () => { ui["intro-about"].textContent = p.about; };
+  chip.addEventListener("pointerenter", describe);
+  chip.addEventListener("focus", describe);
+  chip.addEventListener("click", () => {
     setIntroVisible(false);
     selectPreset(name);
   });
-  return tile;
+  return chip;
 });
 
 ui.play.addEventListener("click", () => setPlaying(!playing));

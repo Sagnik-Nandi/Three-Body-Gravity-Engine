@@ -163,6 +163,64 @@ export function binaryFlyby(aim = -2) {
 }
 
 /**
+ * A Sun with three planets, and a second star passing through at a slant. Starts
+ * in the Sun's frame, so the orbits are clean circles until the star arrives. The
+ * inner planet stays, the middle one is thrown out, the outer one leaves with the star.
+ */
+export function rogueStar() {
+  const sun = 100;
+  const [aim, speed, tilt, phase, start] = [10, 3, 0.3, 3.15, 40];
+  const masses = [sun, 0.1, 0.1, 0.1, sun];
+  const positions = [[0, 0, 0]];
+  const velocities = [[0, 0, 0]];
+  [4, 7, 11].forEach((r, k) => {
+    const a = phase + 2.1 * k;
+    const v = Math.sqrt(sun / r);
+    positions.push([r * Math.cos(a), r * Math.sin(a), 0]);
+    velocities.push([-v * Math.sin(a), v * Math.cos(a), 0]);
+  });
+  positions.push([-start * Math.cos(tilt), aim, start * Math.sin(tilt)]);
+  velocities.push([speed * Math.cos(tilt), 0, -speed * Math.sin(tilt)]);
+  return new System({ masses, positions, velocities, radii: masses.map((m) => radiusForMass(m, 0.03)) });
+}
+
+/**
+ * A gravity assist: a probe on a closed orbit around a Sun passes just behind a
+ * planet, gains speed from it, and leaves the system for good.
+ */
+export function slingshot() {
+  const sun = 1000;
+  const v = Math.sqrt(sun / 10); // the planet: a circle of radius 10
+  const [nearest, farthest, angle] = [5, 16, 5.47]; // the probe: starts at the far end of an ellipse
+  const speed = Math.sqrt(sun * (2 / farthest - 2 / (nearest + farthest)));
+  return makeSystem([sun, 3, 1e-4],
+    [[0, 0], [10, 0], [farthest * Math.cos(angle), farthest * Math.sin(angle)]],
+    [[0, 0], [0, v], [-speed * Math.sin(angle), speed * Math.cos(angle)]], 0.03);
+}
+
+/**
+ * The Hills mechanism: a pair of stars falls past a black hole on a parabola. The
+ * tide splits them: one is captured on a tight orbit, and the other is flung out far
+ * faster than it arrived. Newtonian gravity only; the black hole is just a heavy mass.
+ */
+export function blackHoleFlyby() {
+  const [hole, m, closest, start, angle] = [100, 1, 2.5, 30, 1.8];
+  const mu = hole + 2 * m;
+  const f = -Math.acos((2 * closest) / start - 1); // where the parabola is `start` away, inbound
+  const h = Math.sqrt(2 * mu * closest);
+  const radial = (mu / h) * Math.sin(f);
+  const across = h / start;
+  const [c, sn] = [Math.cos(f), Math.sin(f)];
+  const [x, y] = [start * c, start * sn];
+  const [vx, vy] = [radial * c - across * sn, radial * sn + across * c];
+  const w = Math.SQRT1_2; // each star's speed around their centre, 1 apart
+  const [dx, dy] = [0.5 * Math.cos(angle), 0.5 * Math.sin(angle)];
+  const [wx, wy] = [-w * Math.sin(angle), w * Math.cos(angle)];
+  return makeSystem([hole, m, m], [[0, 0], [x + dx, y + dy], [x - dx, y - dy]],
+    [[0, 0], [vx + wx, vy + wy], [vx - wx, vy - wy]], 0.02);
+}
+
+/**
  * A Sun, a spinning planet, and an object a fifth of the planet's mass from outside
  * the system. It clips the planet and throws out a clump that orbits as a moon for a
  * while. These settings gave the longest-lived moon found, but in a scan of 92 impacts
@@ -176,7 +234,7 @@ export function giantImpact() {
 // Presets for the web page, in menu order. label, group, about: how the menu
 // shows it. make: builds the System; t: suggested run time; eta: accuracy
 // (chaotic runs need smaller). Optional: chaos: opens with that comparison;
-// follow: the camera stays with the planet; viewDistance: how far back it stands; rocks: what the rocks are called in the list of masses; tides: arrows on; trail: starting trail length; particles: made of particles (these
+// follow: the camera stays with the planet; track: the camera stays with this body; viewDistance: how far back it stands; rocks: what the rocks are called in the list of masses; tides: arrows on; trail: starting trail length; particles: made of particles (these
 // step themselves, and can't be compared: too heavy); follow: the camera stays with the planet; extent: size of the view,
 // if the starting positions don't suit. scenarios.py has the Orbits and Chaos ones.
 export const SCENARIOS = {
@@ -200,9 +258,6 @@ export const SCENARIOS = {
   twins: { label: "Twins", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "twin",
     about: "A nudged ghost copy: identical at first, then not." },
 
-  flyby: { label: "Binary flyby", group: "Chaos", make: () => binaryFlyby(), t: 40, eta: 0.004, extent: 6,
-    about: "A passing star steals one of a pair, and throws the other out." },
-
   flower: { label: "Flower", group: "Patterns", make: () => periodicOrbit(PATTERNS.flower), t: 2 * PATTERNS.flower.T, eta: 0.001, trail: 3600,
     about: "A pair draws petals inside a third body's circle. Stable." },
   rosette: { label: "Rosette", group: "Patterns", make: () => periodicOrbit(PATTERNS.rosette), t: PATTERNS.rosette.T, eta: 0.001, trail: 3600,
@@ -213,6 +268,15 @@ export const SCENARIOS = {
     about: "Two bodies loop inside a third body's circle. Repeats for about 90 s, then breaks up." },
   choreography: { label: "Choreography", group: "Patterns", make: () => periodicOrbit(PATTERNS.choreography), t: PATTERNS.choreography.T, eta: 0.001, trail: 3600, extent: 0.75,
     about: "All three share one path, for one lap. So unstable it can't last." },
+
+  flyby: { label: "Binary flyby", group: "Flybys", make: () => binaryFlyby(), t: 40, eta: 0.004, extent: 6,
+    about: "A passing star steals one of a pair, and throws the other out." },
+  "rogue-star": { label: "Rogue star", group: "Flybys", make: () => rogueStar(), t: 15, eta: 0.002, extent: 16, track: 0, trail: 3000,
+    about: "A star passes a solar system: one planet stays, one is flung out, one is stolen." },
+  slingshot: { label: "Slingshot", group: "Flybys", make: () => slingshot(), t: 12, eta: 0.002, extent: 22, trail: 3000,
+    about: "A probe passes behind a planet, takes some of its speed, and leaves for good." },
+  "black-hole": { label: "Black hole", group: "Flybys", make: () => blackHoleFlyby(), t: 15, eta: 0.001, extent: 18, trail: 3000,
+    about: "A black hole splits a pair of stars: it keeps one and flings the other out." },
 
   "head-on": { label: "Head-on", group: "Impacts & tides", make: () => headOn(), t: 30, eta: 0.01,
     about: "Two planets collide and merge." },
