@@ -6,3 +6,4 @@ venv/
 *.gif
 node_modules/
 orbits_shortlist.gif
+!doc/images/*.png
