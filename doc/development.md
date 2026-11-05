@@ -13,7 +13,7 @@
 | `web/engine.js`, `web/scenarios.js` | JavaScript port of the engine and scenarios, plus merging collisions and tides. |
 | `web/particles.js` | Bodies made of particles: rubble piles with contact forces (web only). |
 | `web/serve.js` | Tiny local web server for the page (`npm start`). |
-| `doc/` | These notes, and the images on the front page. |
+| `doc/` | These notes, and the images in the README. |
 | `web/test/` | JS physics tests, plus a cross-check against reference runs exported from Python. |
 
 ## Tests
