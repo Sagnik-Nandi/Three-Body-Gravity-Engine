@@ -163,9 +163,24 @@ export function binaryFlyby(aim = -2) {
 }
 
 /**
- * A Sun with three planets, and a second star passing through at a slant. Starts
- * in the Sun's frame, so the orbits are clean circles until the star arrives. The
- * inner planet stays, the middle one is thrown out, the outer one leaves with the star.
+ * Run a system backwards by `time` and call that its start, so the same events
+ * happen later: flip the velocities, run forward, flip them again.
+ */
+function rewound(sim, time, eta = 0.001) {
+  const flip = () => { for (let k = 0; k < 3 * sim.n; k++) sim.vel[k] = -sim.vel[k]; };
+  flip();
+  sim.advanceTo(time, eta);
+  flip();
+  sim.time = 0;
+  return sim;
+}
+
+/**
+ * A Sun with three planets, and a second star passing through at a slant. The
+ * setup describes the system shortly before the pass, then is rewound, so the
+ * planets get time on their orbits first. It starts with the Sun at rest at the
+ * origin. The inner planet stays, the middle one is thrown out, the outer one
+ * leaves with the star.
  */
 export function rogueStar() {
   const sun = 100;
@@ -181,21 +196,32 @@ export function rogueStar() {
   });
   positions.push([-start * Math.cos(tilt), aim, start * Math.sin(tilt)]);
   velocities.push([speed * Math.cos(tilt), 0, -speed * Math.sin(tilt)]);
-  return new System({ masses, positions, velocities, radii: masses.map((m) => radiusForMass(m, 0.03)) });
+  const sim = rewound(new System({ masses, positions, velocities, radii: masses.map((m) => radiusForMass(m, 0.03)) }), 8);
+  const [px, py, pz, vx, vy, vz] = [...sim.pos.subarray(0, 3), ...sim.vel.subarray(0, 3)];
+  for (let i = 0; i < sim.n; i++) {
+    sim.pos[3 * i] -= px;
+    sim.pos[3 * i + 1] -= py;
+    sim.pos[3 * i + 2] -= pz;
+    sim.vel[3 * i] -= vx;
+    sim.vel[3 * i + 1] -= vy;
+    sim.vel[3 * i + 2] -= vz;
+  }
+  return sim;
 }
 
 /**
  * A gravity assist: a probe on a closed orbit around a Sun passes just behind a
- * planet, gains speed from it, and leaves the system for good.
+ * planet, gains speed from it, and leaves the system for good. Rewound, so the
+ * probe gets time on its orbit first.
  */
 export function slingshot() {
   const sun = 1000;
   const v = Math.sqrt(sun / 10); // the planet: a circle of radius 10
   const [nearest, farthest, angle] = [5, 16, 5.47]; // the probe: starts at the far end of an ellipse
   const speed = Math.sqrt(sun * (2 / farthest - 2 / (nearest + farthest)));
-  return makeSystem([sun, 3, 1e-4],
+  return rewound(makeSystem([sun, 3, 1e-4],
     [[0, 0], [10, 0], [farthest * Math.cos(angle), farthest * Math.sin(angle)]],
-    [[0, 0], [0, v], [-speed * Math.sin(angle), speed * Math.cos(angle)]], 0.03);
+    [[0, 0], [0, v], [-speed * Math.sin(angle), speed * Math.cos(angle)]], 0.03), 6);
 }
 
 /**
@@ -240,17 +266,17 @@ export function giantImpact() {
 export const SCENARIOS = {
   "two-body": { label: "Two-body", group: "Orbits", make: () => twoBody(10, 1, 10), t: 100, eta: 0.01,
     about: "One circular orbit." },
-  figure8: { label: "Figure-8", group: "Orbits", make: () => figure8(), t: 3 * FIGURE8_PERIOD, eta: 0.01,
-    about: "Three equal masses share one path." },
-  lagrange: { label: "Triangle", group: "Orbits", make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01,
-    about: "A spinning triangle that eventually breaks." },
-  euler: { label: "Line", group: "Orbits", make: () => eulerLine(), t: 8 * eulerPeriod(), eta: 0.01,
-    about: "Three in a rotating line: perfect, but fragile." },
-  trojan: { label: "Trojan", group: "Orbits", make: () => sunJupiterTrojan(), t: 25 * lagrangePeriod([1000, 1, 0], 10), eta: 0.01,
-    about: "An asteroid parked 60° ahead of Jupiter." },
   "sun-earth-moon": { label: "Moon", group: "Orbits", make: () => sunEarthMoon(), t: 4 * Math.PI * Math.sqrt(1000 / 1001), eta: 0.01,
     about: "A moon circling a planet circling a star." },
+  euler: { label: "Line", group: "Orbits", make: () => eulerLine(), t: 8 * eulerPeriod(), eta: 0.01,
+    about: "Three in a rotating line: perfect, but fragile." },
+  figure8: { label: "Figure-8", group: "Orbits", make: () => figure8(), t: 3 * FIGURE8_PERIOD, eta: 0.01,
+    about: "Three equal masses share one path." },
+  trojan: { label: "Trojan", group: "Orbits", make: () => sunJupiterTrojan(), t: 25 * lagrangePeriod([1000, 1, 0], 10), eta: 0.01,
+    about: "An asteroid parked 60° ahead of Jupiter." },
 
+  lagrange: { label: "Triangle", group: "Chaos", make: () => lagrangeTriangle(), t: 4 * lagrangePeriod(), eta: 0.01,
+    about: "A spinning triangle that eventually breaks." },
   pythagorean: { label: "Pythagorean", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003,
     about: "Three tangle, then one is thrown out." },
   butterfly: { label: "Butterfly", group: "Chaos", make: () => pythagorean(), t: 70, eta: 0.003, chaos: "cloud",

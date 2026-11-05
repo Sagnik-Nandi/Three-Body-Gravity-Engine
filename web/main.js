@@ -936,10 +936,13 @@ buildMenu(ui["intro-presets"], "chips", (name, p) => {
   const chip = document.createElement("button");
   chip.className = "chip";
   chip.textContent = p.label;
-  // One line about whichever is under the pointer, instead of a box for each.
-  const describe = () => { ui["intro-about"].textContent = p.about; };
+  // A note beside whichever is under the pointer, instead of a box for each.
+  const describe = () => showIntroNote(chip, p.about);
+  const hide = () => { ui["intro-about"].hidden = true; };
   chip.addEventListener("pointerenter", describe);
   chip.addEventListener("focus", describe);
+  chip.addEventListener("pointerleave", hide);
+  chip.addEventListener("blur", hide);
   chip.addEventListener("click", () => {
     setIntroVisible(false);
     selectPreset(name);
@@ -988,8 +991,22 @@ const TOUR_STEPS = [
     text: "Drag to rotate, scroll to zoom. <kbd>Space</kbd> pauses, <kbd>R</kbd> restarts, <kbd>H</kbd> hides the panel." },
 ];
 
+/** Put the note just above a button, or below it if there's no room. */
+function showIntroNote(chip, text) {
+  const note = ui["intro-about"];
+  note.textContent = text;
+  note.hidden = false;
+  const c = chip.getBoundingClientRect();
+  const margin = 8;
+  const x = c.left + c.width / 2 - note.offsetWidth / 2;
+  const above = c.top - note.offsetHeight - margin;
+  note.style.left = `${Math.min(Math.max(x, margin), window.innerWidth - note.offsetWidth - margin)}px`;
+  note.style.top = `${above >= margin ? above : c.bottom + margin}px`;
+}
+
 function setIntroVisible(visible) {
   ui.intro.hidden = !visible;
+  ui["intro-about"].hidden = true;
 }
 
 ui["intro-open"].addEventListener("click", () => setIntroVisible(true));

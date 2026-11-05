@@ -343,7 +343,7 @@ test("rogue star: one planet stays, one is flung out, one is stolen", () => {
   const preset = SCENARIOS["rogue-star"];
   const s = rogueStar();
   s.merge = true;
-  s.advanceTo(40, preset.eta);
+  s.advanceTo(48, preset.eta);
   assert.equal(s.n, 5, "nothing collides");
   assert.ok(energyAround(s, 1, 0) < 0, "inner planet stays with the Sun");
   assert.ok(energyAround(s, 2, 0) > 0 && energyAround(s, 2, 4) > 0, "middle planet is free");
@@ -355,7 +355,7 @@ test("slingshot: a probe on a closed orbit leaves the system after passing the p
   const s = slingshot();
   s.merge = true;
   assert.ok(energyAround(s, 2, 0) < 0, "starts bound");
-  s.advanceTo(preset.t, preset.eta);
+  s.advanceTo(18, preset.eta);
   assert.equal(s.n, 3, "the probe misses the planet");
   assert.ok(energyAround(s, 2, 0) > 0, "ends free");
 });

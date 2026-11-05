@@ -103,8 +103,11 @@
     .intro-head { display: flex; align-items: center; gap: 14px; padding-right: 36px; }
     #tour-start { padding: 5px 14px; background: var(--go); border-color: var(--go); color: #06230f; font-weight: 650; }
     #tour-start:hover { filter: brightness(1.12); border-color: var(--go); }
-    #intro-about { min-height: 2.8em; margin: 10px 0 0; color: #c4ccda; font-size: 13px; }
-    .intro-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; }
+    #intro-about { position: fixed; z-index: 11; width: max-content; max-width: 260px; margin: 0; padding: 6px 10px;
+      background: #182031; border: 1px solid var(--accent); border-radius: 8px; color: var(--text);
+      font-size: 12.5px; line-height: 1.35; pointer-events: none; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+    #intro-about[hidden] { display: none; }
+    .intro-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 16px; }
     .intro-foot a { color: var(--muted); font-size: 12px; }
 
     /* Guided tour */
@@ -161,7 +164,6 @@
       </div>
       <p class="lead">Gravity, simulated live. Pick an experiment:</p>
       <div id="intro-presets"></div>
-      <p id="intro-about"></p>
       <div class="intro-foot">
         <a href="https://github.com/Sagnik-Nandi/Three-Body-Gravity-Engine" target="_blank"
           rel="noopener">Source and physics notes</a>
@@ -170,6 +172,7 @@
     </div>
   </div>
 
+  <p id="intro-about" role="tooltip" hidden></p>
   <button id="panel-show" class="icon" title="Show controls (H)" aria-label="Show controls" hidden>☰</button>
   <div id="panel">
     <div class="panel-head">

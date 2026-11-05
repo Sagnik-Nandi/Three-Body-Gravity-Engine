@@ -2,7 +2,7 @@
 
 - **Presets** are always on show, in groups: Orbits, Chaos, Patterns, Flybys, and Impacts & tides.
   The list scrolls when the window is short. The plain address opens with all of them, and a
-  line about the one under the pointer; click one to run it.
+  note beside the one under the pointer; click one to run it.
   **Quick tour** (green, on that screen) walks through the groups in five short steps, loading a
   preset for each. Shared links with options skip the welcome screen.
 - **Play/pause** (or the space bar), **restart** (or the R key), and **speed** from 0.1x to 10x. At 1x a preset's
